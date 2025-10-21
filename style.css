@@ -1,18 +1,83 @@
-#ebbinghaus-tutor-settings h3,
-#ebbinghaus-tutor-settings h4 {
+/* 顶部图标样式 */
+.ebbinghaus-top-icon {
+    order: 10; /* 控制图标在顶部栏的位置 */
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    font-size: 1.2em; /* 图标大小 */
+    margin: 0 5px;
+}
+.ebbinghaus-top-icon:hover {
+    opacity: 1;
+}
+
+/* 弹窗主容器 (遮罩层) */
+.ebbinghaus-modal {
+    display: none; /* 默认隐藏 */
+    position: fixed; /* 固定在屏幕上 */
+    z-index: 1000; /* 确保在最上层 */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* 半透明黑色背景 */
+    overflow: auto;
+}
+
+/* 弹窗内容区 */
+.ebbinghaus-modal-content {
+    background-color: var(--primary-bg-color);
+    margin: 5% auto; /* 上下5%边距，左右自动居中 */
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    width: 80%; /* 弹窗宽度 */
+    max-width: 1000px; /* 最大宽度 */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+}
+
+/* 弹窗头部 */
+.ebbinghaus-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.ebbinghaus-modal-header h2 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+/* 关闭按钮 */
+.ebbinghaus-close-button {
+    color: var(--text-color);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+.ebbinghaus-close-button:hover,
+.ebbinghaus-close-button:focus {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+/* 表格样式 (与之前类似，稍作调整) */
+.ebbinghaus-modal-body h4 {
     color: var(--text-color);
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 5px;
     margin-top: 15px;
 }
-
 .ebbinghaus-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
     font-size: 14px;
 }
-
 .ebbinghaus-table th,
 .ebbinghaus-table td {
     border: 1px solid var(--border-color);
@@ -20,27 +85,13 @@
     text-align: left;
     color: var(--text-color);
 }
-
 .ebbinghaus-table th {
     background-color: var(--secondary-bg-color);
     font-weight: bold;
 }
-
 .ebbinghaus-table td .word-cell {
-    max-height: 100px;
+    max-height: 120px;
     overflow-y: auto;
     white-space: pre-wrap;
     word-break: break-all;
-}
-
-/* 滚动条样式 (可选) */
-.ebbinghaus-table td .word-cell::-webkit-scrollbar {
-    width: 5px;
-}
-.ebbinghaus-table td .word-cell::-webkit-scrollbar-track {
-    background: var(--primary-bg-color);
-}
-.ebbinghaus-table td .word-cell::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 3px;
 }
