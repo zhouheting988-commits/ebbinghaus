@@ -2,8 +2,8 @@
   "name": "Ebbinghaus Tutor Helper",
   "author": "Your Name & Gemini",
   "description": "Creates and manages the memory tables for the Ebbinghaus vocabulary learning system.",
-  "version": "2.0.0",
-  "script": "script.js",
+  "version": "2.0.1",
+  "script": "index.js",
   "style": "style.css",
   "tags": ["learning", "utility", "memory-tables"],
   "icon": "fa-solid fa-graduation-cap"
