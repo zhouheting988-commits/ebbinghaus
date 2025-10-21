@@ -1,7 +1,0 @@
-name: Ebbinghaus Tutor Helper
-author: Your Name & Gemini
-description: Creates and manages the necessary memory tables for the Ebbinghaus vocabulary learning system.
-version: 1.0.0
-tags: ["learning", "utility", "memory-tables"]
-requires:
-  - memory-tables
