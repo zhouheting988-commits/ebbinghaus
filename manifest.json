@@ -1,12 +1,10 @@
 {
-    "display_name": "Ebbinghaus Tutor",
-    "version": "1.0.0",
-    "author": "{{user}} & Gemini",
-    "description": "A standalone Ebbinghaus vocabulary learning system. Manages vocabulary lists and review schedules.",
-    "script": "index.js",
-    "style": "style.css",
-    "templates": ["ebbinghaus-panel.html"],
-    "type": "module",
-    "persistent": true,
-    "min_version": "1.12.0"
-}
+    "display_name": "艾宾浩斯词汇导师 (Ebbinghaus Trainer)",
+    "loading_order": 101,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Dauvier & Gemini",
+    "version": "0.1.0",
+    "homePage": "https://github.com/zhouheting988-commits/ebbinghaus"
