@@ -1,44 +1,55 @@
+/* style.css - v0.2 - 移动端UI适配版 */
+
+/* 插件主窗口样式 */
 #ebbinghaus-trainer-popup {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 80%;
+    width: 90%; /* 在手机上宽度可以大一些 */
     max-width: 800px;
     background-color: #2c2f33;
     border: 1px solid #4f545c;
     border-radius: 8px;
     z-index: 1000;
-    display: none; /* 默认隐藏, 未来需要一个按钮来打开它 */
+    display: none; /* 默认隐藏 */
     color: #ffffff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); /* 加点阴影更好看 */
 }
 
+/* 弹出窗口头部 */
 #ebbinghaus-trainer-popup .popup-header {
-    padding: 10px;
+    padding: 10px 15px;
     background-color: #23272a;
     border-bottom: 1px solid #4f545c;
     cursor: move;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 }
 
+/* 弹出窗口内容区域 */
 #ebbinghaus-trainer-popup .popup-body {
     padding: 15px;
     max-height: 70vh;
     overflow-y: auto;
 }
 
+/* 各个面板的间距 */
 #ebbinghaus-control-panel,
 #ebbinghaus-mastery-table-container,
 #ebbinghaus-schedule-table-container {
     margin-bottom: 15px;
 }
 
-/* 暂时添加一个按钮来打开我们的插件窗口 */
+/* 顶部我们自己的按钮的样式 (可选, 微调) */
 #open-ebbinghaus-trainer {
-    position: fixed;
-    bottom: 60px;
-    right: 20px;
-    z-index: 999;
+    /* 使用了酒馆的 menu_button class，一般不需要额外样式 */
+    /* 如果需要，可以在这里加，比如调整间距 */
+    margin-left: 5px;
+}
+#open-ebbinghaus-trainer span {
+    font-size: 1.2em; /* 让图标大一点点 */
 }
