@@ -1,4 +1,4 @@
-// Ebbinghaus Tutor - Standalone Extension v3.0 (Mobile & Desktop Compatible)
+// Ebbinghaus Tutor - Standalone Extension v4.0 (Latest API for ST 1.12.0+)
 // Author: {{user}} & Gemini
 
 (function () {
@@ -26,7 +26,7 @@
     async function saveData() { try { await SillyTavern.fs.write(`${extensionName}/${dataFileName}`, JSON.stringify(ebbinghausData, null, 4)); } catch (err) { console.error(`${extensionName}: Failed to save data.`, err); } if (isPanelVisible) renderUI(); }
 
     // --- 界面创建与渲染 (不变) ---
-    function createPanel() { const panel = document.createElement('div'); panel.id = `${extensionId}-panel`; panel.classList.add('ebbinghaus-modal'); panel.innerHTML = `<div class="ebbinghaus-modal-content"><div class="ebbinghaus-modal-header"><h2>Ebbinghaus Tutor Data</h2><button id="${extensionId}-close-button" class="ebbinghaus-close-button">&times;</button></div><div id="${extensionId}-container" class="ebbinghaus-modal-body">Loading...</div></div>`; document.body.appendChild(panel); document.getElementById(`${extensionId}-close-button`).addEventListener('click', togglePanel); }
+    function createPanel() { if (document.getElementById(`${extensionId}-panel`)) return; const panel = document.createElement('div'); panel.id = `${extensionId}-panel`; panel.classList.add('ebbinghaus-modal'); panel.innerHTML = `<div class="ebbinghaus-modal-content"><div class="ebbinghaus-modal-header"><h2>Ebbinghaus Tutor Data</h2><button id="${extensionId}-close-button" class="ebbinghaus-close-button">&times;</button></div><div id="${extensionId}-container" class="ebbinghaus-modal-body">Loading...</div></div>`; document.body.appendChild(panel); document.getElementById(`${extensionId}-close-button`).addEventListener('click', togglePanel); }
     function renderUI() { const container = document.getElementById(`${extensionId}-container`); if (!container || !ebbinghausData) return; const { Study_Control = {}, Vocabulary_Mastery = {}, Word_Lists = {} } = ebbinghausData; const currentDay = Study_Control.Current_Day || '1'; const currentDayMastery = { [`Day ${currentDay}`]: Vocabulary_Mastery[`Day ${currentDay}`] || {} }; let html = '<h4>Study Control</h4>' + createHtmlTable(Study_Control) + '<h4>Vocabulary Mastery (Current Day)</h4>' + createHtmlTable(currentDayMastery) + '<h4>Word Lists Archive</h4>' + createHtmlTable(Word_Lists); container.innerHTML = html; }
     function createHtmlTable(data) { if (!data || Object.keys(data).length === 0) return `<p>No data available.</p>`; let tableHtml = '<table class="ebbinghaus-table">'; const firstRow = Object.values(data)[0]; if (typeof firstRow === 'object' && firstRow !== null) { const headers = new Set(); Object.values(data).forEach(row => Object.keys(row).forEach(header => headers.add(header))); const headerArray = Array.from(headers); tableHtml += '<thead><tr><th>ID</th>' + headerArray.map(h => `<th>${h}</th>`).join('') + '</tr></thead>'; tableHtml += '<tbody>'; for (const [rowKey, rowValue] of Object.entries(data)) { tableHtml += `<tr><td>${rowKey}</td>`; headerArray.forEach(header => { const cellValue = rowValue[header] || ''; tableHtml += `<td><div class="word-cell">${cellValue.toString().replace(/,/g, ', ')}</div></td>`; }); tableHtml += '</tr>'; } tableHtml += '</tbody>'; } else { tableHtml += '<thead><tr><th>Setting</th><th>Value</th></tr></thead>'; tableHtml += '<tbody>'; for (const [key, value] of Object.entries(data)) { tableHtml += `<tr><td>${key}</td><td>${value}</td></tr>`; } tableHtml += '</tbody>'; } tableHtml += '</table>'; return tableHtml; }
     function togglePanel() { const panel = document.getElementById(`${extensionId}-panel`); if (!panel) return; isPanelVisible = !isPanelVisible; panel.style.display = isPanelVisible ? 'block' : 'none'; if (isPanelVisible) renderUI(); }
@@ -38,44 +38,25 @@
     function handleArchiveMastered(listName, day) { const dayKey = `Day ${day}`; const masteredWords = ebbinghausData.Vocabulary_Mastery[dayKey]?.Level_5_Mastered_Today; if (masteredWords) { let existingWords = ebbinghausData.Word_Lists[listName]?.split(',').filter(Boolean).map(w => w.trim()) || []; let newMasteredWords = masteredWords.split(',').filter(Boolean).map(w => w.trim()); let combined = [...new Set([...existingWords, ...newMasteredWords])]; ebbinghausData.Word_Lists[listName] = combined.join(','); ebbinghausData.Vocabulary_Mastery[dayKey].Level_5_Mastered_Today = ""; saveData(); } }
     function handleDemoteWord(word, listName, day) { let cleanWord = word.trim(); if (ebbinghausData.Word_Lists[listName]) { let listWords = ebbinghausData.Word_Lists[listName].split(',').filter(Boolean).map(w => w.trim()); const index = listWords.indexOf(cleanWord); if (index > -1) { listWords.splice(index, 1); ebbinghausData.Word_Lists[listName] = listWords.join(','); } } handleAddNewWords(cleanWord, day); }
     function handleAdvanceDay() { let nextDay = parseInt(ebbinghausData.Study_Control.Current_Day, 10) + 1; ebbinghausData.Study_Control.Current_Day = nextDay.toString(); const dayKey = `Day ${nextDay}`; if (!ebbinghausData.Vocabulary_Mastery[dayKey]) ebbinghausData.Vocabulary_Mastery[dayKey] = { ...defaultData.Vocabulary_Mastery["Day 1"], Level_0_New: "" }; saveData(); }
-
-    // --- NEW: 兼容手机和桌面的UI初始化 ---
-    function initializeUI() {
-        // 方法一：在主设置列表创建按钮 (兼容性最好，手机端可见)
-        const settingsList = document.querySelector('#extensions_settings > .list-group');
-        if (settingsList) {
-            const button = document.createElement('div');
-            button.classList.add('list-group-item');
-            button.innerHTML = `
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">
-                        <span class="fa-solid fa-book-open"></span>
-                        Ebbinghaus Tutor
-                    </h5>
-                </div>
-                <small class="text-muted">Click to open the vocabulary management panel.</small>
-            `;
-            button.addEventListener('click', togglePanel);
-            settingsList.appendChild(button);
-            console.log(`${extensionName}: Settings button created.`);
-        }
-
-        // 方法二：在顶部栏创建图标 (桌面端可见)
-        const topBar = document.getElementById('top-bar-icons');
-        if (topBar) {
-            const iconHtml = `<div id="${extensionId}-top-icon" class="ebbinghaus-top-icon fa-solid fa-book-open" title="Ebbinghaus Tutor"></div>`;
-            topBar.insertAdjacentHTML('beforeend', iconHtml);
-            document.getElementById(`${extensionId}-top-icon`).addEventListener('click', togglePanel);
-            console.log(`${extensionName}: Top bar icon created.`);
-        }
-    }
-
+    
     // --- 插件加载主入口 ---
     SillyTavern.chat.completions.addEventListener('streamingPart', (event) => { if (event.detail.type === 'MESSAGE_UPDATE' && event.detail.data.is_final) processAiCommand(event.detail.data.message); });
+
+    // 使用 jQuery 的 document ready 来确保 SillyTavern 的 API 已经加载
     jQuery(async () => {
         await loadData();
         createPanel();
-        initializeUI();
-        console.log(`${extensionName} has been loaded and initialized.`);
+
+        // **这是新版酒馆的官方注册方法**
+        const entry = {
+            name: extensionName,
+            icon: 'fa-solid fa-book-open', // Font Awesome 图标
+            action: togglePanel, // 点击时执行的函数
+        };
+
+        // 通过官方API将入口添加到扩展菜单中
+        SillyTavern.addExtensionEntry(entry);
+
+        console.log(`${extensionName} has been successfully registered using the official API.`);
     });
 })();
