@@ -2,9 +2,11 @@
     "display_name": "Ebbinghaus Tutor",
     "version": "1.0.0",
     "author": "{{user}} & Gemini",
-    "description": "A standalone Ebbinghaus vocabulary learning system. Manages vocabulary lists and review schedules without external dependencies.",
+    "description": "A standalone Ebbinghaus vocabulary learning system. Manages vocabulary lists and review schedules.",
     "script": "index.js",
     "style": "style.css",
+    "templates": ["ebbinghaus-panel.html"],
+    "type": "module",
     "persistent": true,
-    "min_version": "1.11.0"
+    "min_version": "1.12.0"
 }
