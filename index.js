@@ -1,4 +1,4 @@
-// index.js - v0.2 - 移动端UI适配版
+// index.js - v0.3 - 终极加载时序安全版
 
 console.log("______________________艾宾浩斯词汇插件：开始加载______________________");
 
@@ -37,11 +37,39 @@ function onMessageRendered(chat_id) {
     console.log("艾宾浩斯插件：监听到AI回复。");
 }
 
+
+// ================== 【核心修改点：小侦探函数】 ==================
+/**
+ * 等待指定元素出现，然后执行操作
+ * @param {string} selector - 要等待的jQuery选择器
+ * @param {function} callback - 元素出现后要执行的函数
+ * @param {number} maxAttempts - 最大尝试次数
+ * @param {number} intervalTime - 每次尝试的间隔时间 (毫秒)
+ */
+function waitForElement(selector, callback, maxAttempts = 20, intervalTime = 200) {
+    let attempts = 0;
+    const interval = setInterval(() => {
+        const element = $(selector);
+        if (element.length > 0) {
+            clearInterval(interval);
+            callback(element);
+        } else {
+            attempts++;
+            if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                console.error(`艾宾浩斯插件：等待超时！未能找到元素: ${selector}`);
+            }
+        }
+    }, intervalTime);
+}
+// =============================================================
+
+
 // --- 插件初始化入口 ---
 jQuery(async () => {
     try {
         const html = await $.get('extensions/ebbinghaus/templates/ebbinghaus.html');
-        $("#character_edit_panel").after(html); // 换个更稳妥的注入点
+        $("#character_edit_panel").after(html);
     } catch (error) {
         console.error("艾宾浩斯插件：加载 ebbinghaus.html 失败！", error);
         return;
@@ -63,18 +91,18 @@ jQuery(async () => {
 
     $(document).on('click', '#ebbinghaus-start-btn', startDay);
     $(document).on('click', '#ebbinghaus-save-btn', saveData);
-
-    // ================== 【核心修改点】 ==================
-    // 1. 创建一个新的按钮，并给它加上酒馆的通用样式 `menu_button`
-    const openButton = $('<div id="open-ebbinghaus-trainer" class="menu_button" title="艾宾浩斯词汇导师"><span class="fa-solid fa-brain"></span></div>');
-    
-    // 2. 将按钮插入到顶部扩展菜单按钮的后面，这是最稳妥的位置
-    $("#extensions_button").after(openButton);
-    // ================================================
-
     $(document).on('click', '#open-ebbinghaus-trainer', () => $('#ebbinghaus-trainer-popup').toggle());
     $(document).on('click', '#ebbinghaus-trainer-popup .popup-close-button', () => $('#ebbinghaus-trainer-popup').hide());
     
+    // ================== 【核心修改点：使用小侦探】 ==================
+    // 我们不再直接添加按钮，而是让“小侦探”去完成任务
+    waitForElement("#extensions_button", (extensionsButton) => {
+        console.log("艾宾浩斯插件：成功找到 #extensions_button，正在注入按钮...");
+        const openButton = $('<div id="open-ebbinghaus-trainer" class="menu_button" title="艾宾浩斯词汇导师"><span class="fa-solid fa-brain"></span></div>');
+        extensionsButton.after(openButton);
+    });
+    // =============================================================
+
     if (typeof APP !== 'undefined' && APP.eventSource) {
          APP.eventSource.on(APP.event_types.CHARACTER_MESSAGE_RENDERED, onMessageRendered);
     } else {
@@ -82,25 +110,7 @@ jQuery(async () => {
     }
    
     console.log("______________________艾宾浩斯词汇插件：加载完成______________________");
-});    // 4. 绑定界面上的按钮事件
-    $(document).on('click', '#ebbinghaus-start-btn', startDay);
-    $(document).on('click', '#ebbinghaus-save-btn', saveData);
-
-    // 5. 添加一个按钮来打开和关闭我们的插件窗口
-    $('body').append('<button id="open-ebbinghaus-trainer" class="menu-button">艾宾浩斯</button>');
-    $(document).on('click', '#open-ebbinghaus-trainer', () => $('#ebbinghaus-trainer-popup').toggle());
-    $(document).on('click', '#ebbinghaus-trainer-popup .popup-close-button', () => $('#ebbinghaus-trainer-popup').hide());
-    
-    // 6. 注册对SillyTavern核心事件的监听
-    // 确保 APP 和 eventSource 存在
-    if (typeof APP !== 'undefined' && APP.eventSource) {
-         APP.eventSource.on(APP.event_types.CHARACTER_MESSAGE_RENDERED, onMessageRendered);
-    } else {
-        console.error("艾宾浩斯插件：无法监听消息，APP.eventSource 未定义！");
-    }
-   
-    console.log("______________________艾宾浩斯词汇插件：加载完成______________________");
-});    // 2. 加载之前保存的学习数据
+});});    // 2. 加载之前保存的学习数据
     // 我们从LocalStorage加载，而不是文件，因为写文件权限受限
     const savedData = localStorage.getItem('ebbinghaus_plugin_data');
     if (savedData) {
