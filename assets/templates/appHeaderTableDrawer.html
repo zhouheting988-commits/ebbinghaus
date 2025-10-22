@@ -1,0 +1,35 @@
+<div id="table_database_settings_drawer" class="drawer">
+    <div class="drawer-toggle">
+        <!-- 图标的 title 可以改成我们的插件名 -->
+        <div id="table_drawer_icon" class="drawer-icon fa-solid fa-graduation-cap fa-fw closedIcon interactable" title="艾宾浩斯学习系统" data-i18n="[title]Ebbinghaus Learning System" tabindex="0"></div>
+    </div>
+    <div id="table_drawer_content" class="drawer-content closedDrawer">
+        <!-- 切换界面按钮 -->
+        <div id="table_button_container" class="wide100p flex-container" style="display: flex; flex-grow: 1; justify-content: space-between">
+            <div style="display: flex; flex-grow: 1; gap: 5px;">
+                <!-- 保留 "数据" 按钮，用于查看我们的四张核心表格的实时内容 -->
+                <button id="database_button" class="menu_button_icon menu_button interactable"><i class="fa-solid fa-database"></i><b data-i18n="Data">数据</b></button>
+                
+                <!-- 删除了 "模板" 按钮 -->
+                <!-- <button id="editor_button" ...>...</button> -->
+            </div>
+            <!-- 保留 "设置" 按钮 -->
+            <button id="setting_button" class="menu_button_icon menu_button interactable">
+                <i class="fa-solid fa-gears"></i>
+                <b data-i18n="Settings">设置</b>
+            </button>
+        </div>
+        <!-- 内容容器保持不变 -->
+        <div id="app_header_table_container" style="max-height: 100%; overflow-y: auto; flex-grow: 1;">
+
+        </div>
+    </div>
+</div>
+
+<!-- style 部分可以保持不变 -->
+<style>
+    #app_header_table_container {
+        overflow-y: auto;
+        flex-grow: 1;
+    }
+</style>
