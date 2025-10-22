@@ -1,0 +1,57 @@
+<div class="memory_enhancement_container">
+    <div class="memory_enhancement_settings">
+        <div class="inline-drawer">
+            <!-- 1. 修改插件标题 -->
+            <div id="inline_drawer_header_content">
+                <b style="font-size: 1.1rem" data-i18n="Ebbinghaus Learning System">艾宾浩斯学习系统</b>
+            </div>
+
+            <div class="inline-drawer-content">
+                <div id="memory_enhancement_settings_inline_drawer_content">
+                    
+                    <!-- 2. 保留插件设置的总体框架 -->
+                    <div class="persona_management_left_column flex-container wide100p flexGap10" style="padding: 10px 0; gap: 10px">
+                        
+                        <!-- 左侧栏：核心开关和提示词 -->
+                        <div class="flex1 wide50p" style="min-width: 300px">
+                            <h4 class="standoutHeader" data-i18n="Plugin settings">插件设置</h4>
+
+                            <!-- 3. 保留插件开关部分 -->
+                            <h4 data-i18n="Plugin switches">插件开关</h4>
+                            <div class="checkbox_label range-block justifyLeft">
+                                <input type="checkbox" id="table_switch"><span data-i18n="Enable plugin">启用插件</span>
+                            </div>
+                            <div class="checkbox_label range-block justifyLeft">
+                                <input type="checkbox" id="table_read_switch"><span data-i18n="AI read table switch">AI读表开关</span>
+                            </div>
+                            <div class="checkbox_label range-block justifyLeft">
+                                <input type="checkbox" id="table_edit_switch"><span data-i18n="AI edit table switch">AI改表开关</span>
+                            </div>
+
+                            <!-- 4. 保留消息模板部分 -->
+                            <h4 data-i18n="Message template">消息模板</h4>
+                            <div style="padding-left: 5px;">
+                                <label for="dataTable_message_template"></label>
+                                <small class="toggle-description justifyLeft" data-i18n="Message template description">(学习导师的核心指令。使用<code>{{tableData}}</code>宏指令来插入表格数据)</small>
+                                <textarea id="dataTable_message_template" class="wide100p" rows="15"></textarea> <!-- 可以增加行数方便编辑 -->
+                            </div>
+                        </div>
+
+                        <!-- 5. 右侧栏：可以完全清空，或者放一些说明文字 -->
+                        <div class="flex1 wide50p" style="min-width: 300px">
+                            <h4 class="standoutHeader">使用说明</h4>
+                            <p>这是一个专为艾宾浩斯记忆法设计的学习插件。</p>
+                            <p><b>工作流程:</b></p>
+                            <ol>
+                                <li>在聊天开始时，提供当日新词。</li>
+                                <li>AI会结合旧词进行提问。</li>
+                                <li>回答问题，AI会自动记录熟练度。</li>
+                                <li>在聊天框输入 "结束今天" 来完成每日存档。</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
