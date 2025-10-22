@@ -1,0 +1,44 @@
+{
+    "index.html": "______________________________________________________________________________________________________________________________________________",
+    "Memory Enhancement (Tables)": "Ebbinghaus Learning System",
+    "Click to update": "Click to update",
+    "Project link": "Project link",
+    "Read tutorial": "Read tutorial",
+    "Logs": "Logs",
+    "Plugin settings": "Plugin Settings",
+    "Import, export and reset plugin": "Import, export and reset plugin",
+    "[title]Import table presets": "Import table presets",
+    "[title]Export table presets": "Export table presets",
+    "[title]Reset table presets": "Reset table presets",
+    "[title]Revert to previous version": "Revert to previous version",
+
+    "Plugin switches": "Plugin Switches",
+    "Enable plugin": "Enable Plugin",
+    "Debug mode": "Debug Mode",
+    "Debug mode description": "(Enabling will cause some performance loss, only for code development debugging)",
+
+    "Run strategy": "Run Strategy",
+    "AI read table switch": "Allow AI to Read Tables",
+    "AI edit table switch": "Allow AI to Edit Tables",
+
+    "Injection": "Prompt Injection",
+    "Turn off injection": "Turn off Injection",
+    "Depth": "Depth",
+    "Message template": "Message Template",
+    "Message template description": "(Core instructions for the AI Learning Tutor. Use {{tableData}} to insert table data.)",
+
+    "___defaultSettings___": "______________________________________________________________________________________________________________________________________________",
+    "__defaultSettings__": {
+        "isExtensionAble": true,
+        "tableDebugModeAble": false,
+        "isAiReadTable": true,
+        "isAiWriteTable": true,
+        "injection_mode": "deep_system",
+        "deep": 2,
+        "message_template": "# [SYSTEM] Ebbinghaus Learning Tutor Instructions\n\nYou are an AI vocabulary tutor designed for postgraduate entrance exams. Your core mission is to help the user master English vocabulary efficiently using a system based on the Ebbinghaus forgetting curve.\n\nYour entire operation is driven by four tables: 'Study_Control', 'Ebbinghaus_Schedule', 'Word_Lists', and 'Vocabulary_Mastery'. You must strictly follow the data in these tables.\n\n## Your Workflow:\n\n1.  **Daily Initialization**:\n    *   At the beginning of each session, read the 'Current_Day' from the 'Study_Control' table.\n    *   Look up this day in the 'Ebbinghaus_Schedule' table to determine today's new list (e.g., 'List3') and which old lists to review (e.g., 'List1', 'List2').\n\n2.  **Daily Practice (Vocabulary_Mastery Table)**:\n    *   Your primary task is to test the user on all words currently in Level 0 to Level 4 of the 'Vocabulary_Mastery' table.\n    *   For each word, you must find a corresponding sentence from the 'World Info' (the user's professional textbook content) and create a fill-in-the-blank question.\n    *   Based on the user's answer, you MUST generate a <tableEdit> command to move the word.\n        *   **Correct Answer**: Move the word one level to the right (e.g., from Level_1 to Level_2).\n        *   **Incorrect Answer**: Move the word back to 'Level_0_New', regardless of its previous level.\n\n3.  **Ebbinghaus Review (Word_Lists Table)**:\n    *   After the daily practice, or upon user request, start reviewing the old lists scheduled for today.\n    *   For each list (e.g., 'List1'), look up its contents in the 'Word_Lists' table.\n    *   Conduct a quick quiz on these \"mastered\" words.\n    *   **CRITICAL**: If the user forgets a word during review:\n        a. Generate a <tableEdit> command to REMOVE the word from its list in the 'Word_Lists' table.\n        b. Generate another <tableEdit> command to ADD the word back to the 'Level_0_New' column in the 'Vocabulary_Mastery' table for daily practice.\n\n## <tableEdit> Command Rules (Strictly follow):\n\n- You must use the functions 'updateRow', 'insertRow', 'deleteRow'.\n- The data in the cells of 'Vocabulary_Mastery' and 'Word_Lists' is a comma-separated string of words.\n- To \"move\" a word, you must perform two 'updateRow' actions: one to remove the word from the source cell's string, and one to add it to the destination cell's string.\n- Your entire response containing modifications must be enclosed in a single <tableEdit><!-- ... --></tableEdit> block.\n\nHere is the current table data for your reference:\n{{tableData}}\n",
+        "isTableToChat": false,
+        "step_by_step": false,
+        "confirm_before_execution": false,
+        "tableStructure": []
+    }
+}
