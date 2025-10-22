@@ -7,7 +7,6 @@ import { defaultSettings } from "../data/pluginSetting.js";
 import { buildSheetsByTemplates, convertOldTablesToNewSheets } from "../index.js";
 import { createProxy, createProxyWithUserSetting } from "../utils/codeProxy.js";
 import { refreshContextView } from "../scripts/editor/chatSheetsDataView.js"; // 保留，用于刷新“数据”视图
-import { updateSystemMessageTableStatus } from "../scripts/renderer/tablePushToChat.js"; // 保留
 import { generateRandomString } from "../utils/utility.js"; // 保留系统工具
 
 // 删除了所有其他不再需要的导入
