@@ -1,7 +1,11 @@
 {
-    "name": "UltimateTest",
-    "display_name": "终极入口测试",
-    "author": "Debugger",
-    "version": "1.0.0",
-    "entryScript": "index.js"
+    "display_name": "艾宾浩斯词汇导师 (Ebbinghaus Trainer)",
+    "loading_order": 101,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Dauvier & Gemini",
+    "version": "0.1.0",
+    "homePage": "https://github.com/zhouheting988-commits/ebbinghaus"
 }
