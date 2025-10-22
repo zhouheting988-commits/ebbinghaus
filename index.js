@@ -1,13 +1,12 @@
-// MODIFIED FOR EBBINGHAUS LEARNING SYSTEM - FINAL UI-ENABLED VERSION
+// MODIFIED FOR EBBINGHAUS LEARNING SYSTEM - FINAL & COMPLETE VERSION
 
 import { APP, BASE, EDITOR, USER, SYSTEM } from './core/manager.js';
 import { Cell } from "./core/table/cell.js";
-// *** 新增：导入我们的UI控制器 ***
-import { initDrawer } from './scripts/ui/drawer.js';
+import { initializeUI } from './scripts/ui/uiManager.js'; // 导入新的UI控制器
 
 console.log("______________________艾宾浩斯学习插件：开始加载______________________");
 
-const VERSION = '1.2.0-UI-Enabled';
+const VERSION = '2.0.0-UI-Integrated'; // 版本号更新
 
 // --- 核心表格名称常量 ---
 const TBL_CONTROL = 'Study_Control';
@@ -16,8 +15,9 @@ const TBL_WORD_LISTS = 'Word_Lists';
 const TBL_MASTERY = 'Vocabulary_Mastery';
 const CORE_TABLES = [TBL_CONTROL, TBL_SCHEDULE, TBL_WORD_LISTS, TBL_MASTERY];
 
-// (initializeEbbinghausTables, processEndOfDay, handleEditStrInMessage, onChatCompletionPromptReady, onMessageReceived 这些函数保持不变... 为了简洁省略)
-// ... 请确保你保留了上一版中这些函数的完整代码 ...
+/**
+ * 插件初始化时，检查并创建我们需要的四张核心表格。
+ */
 async function initializeEbbinghausTables() {
     console.log("[Ebbinghaus] 正在检查核心表格...");
     let createdSomething = false;
@@ -76,90 +76,115 @@ async function initializeEbbinghausTables() {
         console.log("[Ebbinghaus] 所有核心表格已存在，无需创建。");
     }
 }
+
+/**
+ * 核心逻辑：执行每日学习结束时的存档操作
+ */
 async function processEndOfDay() {
     try {
         EDITOR.info("[Ebbinghaus] 开始执行每日结算...");
+
         const controlSheet = BASE.getTemplateSheet(TBL_CONTROL);
-        if(!controlSheet) return
+        if (!controlSheet) return EDITOR.error("[Ebbinghaus] 结算失败：无法找到控制表 'Study_Control'。");
+
         const currentDay = parseInt(controlSheet.findCellByPosition(1, 1).data.value);
         const nextDay = currentDay + 1;
         controlSheet.findCellByPosition(1, 1).editCellData({ value: String(nextDay) });
         controlSheet.save();
         EDITOR.success(`[Ebbinghaus] 每日结算完成！已进入第 ${nextDay} 天。`);
+        
+        // 此处可以添加更多存档逻辑，比如处理 masterySheet 和 wordListsSheet
+        
     } catch (error) {
         EDITOR.error("[Ebbinghaus] 每日结算时发生严重错误:", error.message, error);
     }
 }
+
+/**
+ * 当AI返回消息时，处理其中的 <tableEdit> 标签
+ */
 function handleEditStrInMessage(chat) {
     if (chat.mes.includes('<tableEdit>')) {
-        console.log("[Ebbinghaus] 检测到<tableEdit>标签，但解析器已禁用。");
+        console.log("[Ebbinghaus] 检测到<tableEdit>标签，但解析器当前已禁用。");
     }
 }
+
+/**
+ * 注入表格提示词 (修复版)
+ */
 async function onChatCompletionPromptReady(eventData) {
     if (eventData.dryRun || !USER.getSettings().isExtensionAble || !USER.getSettings().isAiReadTable) return;
+
     try {
         const piece = BASE.getReferencePiece();
         if (!piece?.hash_sheets) return;
-        const sheets = BASE.hashSheetsToSheets(piece.hash_sheets).filter(sheet => CORE_TABLES.includes(sheet.name));
+
+        const sheets = BASE.hashSheetsToSheets(piece.hash_sheets)
+            .filter(sheet => CORE_TABLES.includes(sheet.name));
+
         if (sheets.length === 0) return;
+
         const tableData = sheets.map((sheet, index) => sheet.getTableText(index, ['title', 'headers', 'rows'])).join('\n');
+        
         const promptContent = USER.getSettings().message_template.replace('{{tableData}}', tableData);
+
         const role = USER.getSettings().injection_mode === 'deep_system' ? 'system' : 'user';
         const deep = USER.getSettings().deep ?? 2;
+        
         eventData.chat.splice(-deep, 0, { role, content: promptContent });
+        
         console.log("[Ebbinghaus] 已注入学习系统提示词及数据。");
     } catch (error) {
         EDITOR.error(`[Ebbinghaus] 表格数据注入失败:`, error.message, error);
     }
 }
+
+/**
+ * 消息接收时触发
+ */
 async function onMessageReceived(event) {
     const { chat_id } = event.detail;
     if (!USER.getSettings().isExtensionAble) return;
+    
     const chat = USER.getContext().chat[chat_id];
     if (!chat) return;
+    
     if (chat.is_user && chat.mes.trim().toLowerCase() === 'end of day') {
         USER.getContext().chat.pop();
         await USER.saveChat();
         processEndOfDay();
         return; 
     }
+
     if (!chat.is_user && USER.getSettings().isAiWriteTable) {
         handleEditStrInMessage(chat);
     }
+
     await BASE.refreshContextView();
 }
 
 
 // --- 插件主入口 ---
 jQuery(async () => {
+    // 等待 SillyTavern 核心加载完成
     await new Promise(resolve => {
         const interval = setInterval(() => { if (window.APP) { clearInterval(interval); resolve(); } }, 100);
     });
     
+    // 注入HTML模板到页面
+    $('#extensions_settings').append(await SYSTEM.getTemplate('index'));
+    $('#app_header_extensions').append(await SYSTEM.getTemplate('appHeaderTableDrawer'));
+    $('#extensions_list').append(await SYSTEM.getTemplate('buttons'));
+    
+    // 初始化我们的核心表格
     await initializeEbbinghausTables();
-
-    // --- UI 加载与初始化 (修复版) ---
-    // 1. 将HTML模板注入到SillyTavern的正确位置
-    const settingsHtml = await SYSTEM.getTemplate('index');
-    const drawerHtml = await SYSTEM.getTemplate('appHeaderTableDrawer');
-    const buttonHtml = await SYSTEM.getTemplate('buttons');
-
-    // 注入设置面板 (会被抽屉里的“设置”按钮控制显示)
-    $('#extensions_settings').append(settingsHtml);
-    // 注入顶部的抽屉面板 (包含图标)
-    $('#app_header_extensions').append(drawerHtml);
-    // 注入扩展列表中的菜单项 (可选，但保持完整性)
-    $('#extensions_list').append(buttonHtml);
-
-    // 2. ***关键步骤***: 调用我们的UI控制器来激活抽屉
-    initDrawer();
-
-    // 3. 移除旧的、不正确的按钮绑定
-    // $('#open_ebbinghaus_system').on('click', ...); // 这行现在由 initDrawer() 处理
+    
+    // 激活所有UI元素！这是关键一步
+    initializeUI();
 
     // 监听主程序事件
     APP.eventSource.on(APP.event_types.MESSAGE_RECEIVED, onMessageReceived);
     APP.eventSource.on(APP.event_types.CHAT_COMPLETION_PROMPT_READY, onChatCompletionPromptReady);
     
-    console.log("______________________艾宾浩斯学习插件：加载完成，UI已激活______________________");
+    console.log("______________________艾宾浩斯学习插件：加载完成______________________");
 });
