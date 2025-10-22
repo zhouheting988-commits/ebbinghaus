@@ -4,7 +4,6 @@ import applicationFunctionManager from "../services/appFuncManager.js";
 import { consoleMessageToEditor } from "../scripts/settings/devConsole.js";
 import { calculateStringHash, generateRandomNumber, generateRandomString, lazy, readonly, } from "../utils/utility.js";
 import { defaultSettings } from "../data/pluginSetting.js";
-import { Drag } from "../components/dragManager.js";
 import { PopupMenu } from "../components/popupMenu.js";
 import { buildSheetsByTemplates, convertOldTablesToNewSheets } from "../index.js";
 import { getRelativePositionOfCurrentCode } from "../utils/codePathProcessing.js";
@@ -288,7 +287,6 @@ export const BASE = {
  * @description 编辑器自身数据应相对于其他数据相互独立，对于修改编辑器自身数据不会影响派生数据和用户数据，反之亦然
  * */
 export const EDITOR = {
-    Drag: Drag,
     PopupMenu: PopupMenu,
     Popup: APP.Popup,
     callGenericPopup: APP.callGenericPopup,
