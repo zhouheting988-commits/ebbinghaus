@@ -112,13 +112,34 @@ async function onMessageReceived(event) {
     await BASE.refreshContextView();
 }
 
-
 // --- 插件主入口 ---
 jQuery(async () => {
-    // 注入HTML模板到页面 (简化，只注入我们需要的)
+    // 注入HTML模板到页面 (使用更健壮的方法)
+    // 1. 设置界面的模板，这个通常很稳定
     $('#extensions_settings').append(await SYSTEM.getTemplate('index'));
-    $('#app_header_extensions').append(await SYSTEM.getTemplate('appHeaderTableDrawer'));
-    
+
+    // 2. 顶部抽屉菜单的模板
+    const drawerHtml = await SYSTEM.getTemplate('appHeaderTableDrawer');
+    // SillyTavern新旧版本挂载点不同，我们两个都尝试
+    if ($('#app_header_extensions').length) {
+        $('#app_header_extensions').append(drawerHtml);
+        console.log("[Ebbinghaus] 抽屉菜单已挂载到 #app_header_extensions");
+    } else if ($('#extensions-settings-button').length) {
+        $('#extensions-settings-button').after(drawerHtml);
+        console.log("[Ebbinghaus] 抽屉菜单已挂载到 #extensions-settings-button 之后");
+    } else {
+        console.error("[Ebbinghaus] 无法找到顶部抽屉菜单的挂载点！");
+    }
+
+    // 3. 扩展菜单中的“打开”按钮模板
+    const buttonHtml = await SYSTEM.getTemplate('buttons');
+    if ($('#extensions_list').length) {
+        $('#extensions_list').append(buttonHtml);
+        console.log("[Ebbinghaus] '打开'按钮已挂载到 #extensions_list");
+    } else {
+        console.error("[Ebbinghaus] 无法找到扩展菜单列表的挂载点！");
+    }
+
     // 关键修复：从这里开始，我们严格按照正确的顺序初始化
     // 1. 加载设置，这是所有UI和逻辑的基础
     loadSettings();
@@ -127,9 +148,15 @@ jQuery(async () => {
     initAppHeaderTableDrawer();
     
     // 3. 为我们自己添加的“打开艾宾浩斯”按钮绑定点击事件
-    // 这个按钮的模板我们没有加载，所以先注释掉，如果需要再加回来
-    // $('#extensions_list').append(await SYSTEM.getTemplate('buttons'));
-    // $(document).on('click', '#open_ebbinghaus_system', () => openAppHeaderTableDrawer());
+    $(document).on('click', '#open_ebbinghaus_system', function () {
+        // 使用新版SillyTavern的抽屉打开方式
+        if (typeof APP.doNavbarIconClick === 'function' && $('#table_drawer_icon').length) {
+            APP.doNavbarIconClick.call($('#table_drawer_icon').get(0));
+        } else {
+            // 使用旧版的slideToggle方式
+            openAppHeaderTableDrawer('database');
+        }
+    });
     
     // 4. 执行界面翻译
     executeTranslation();
