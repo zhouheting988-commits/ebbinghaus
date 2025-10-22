@@ -1,11 +1,15 @@
 {
-    "display_name": "艾宾浩斯词汇导师 (Ebbinghaus Trainer)",
-    "loading_order": 101,
-    "requires": [],
-    "optional": [],
-    "js": "index.js",
-    "css": "style.css",
-    "author": "Dauvier & Gemini",
-    "version": "0.1.0",
-    "homePage": "https://github.com/zhouheting988-commits/ebbinghaus"
+    "name": "EbbinghausTrainer",
+    "display_name": "艾宾浩斯词汇导师 (Ebbinghaus Trainer)",
+    "description": "一个基于艾宾浩斯记忆曲线的单词记忆表格插件。",
+    "author": "Dauvier & Gemini",
+    "version": "0.1.0",
+    "loading_order": 101,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "styles": [
+        "style.css"
+    ],
+    "homePage": "https://github.com/zhouheting988-commits/ebbinghaus"
 }
