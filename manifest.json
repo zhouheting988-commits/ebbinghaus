@@ -1,8 +1,14 @@
 {
-    "name": "EbbinghausFinalTest",
-    "display_name": "艾宾浩斯词汇导师 (最终测试版)",
-    "author": "Dauvier & Gemini",
+    "name": "UltimateTest",
+    "display_name": "终极入口测试",
+    "author": "Debugger",
     "version": "1.0.0",
-    "description": "一个用于测试插件入口是否能正常显示的最小化版本。",
     "entryScript": "index.js"
-}
+}```
+
+#### 第2步：修改 `index.js`
+
+删除你 `index.js` 里的**所有内容**，然后只粘贴下面这**一行代码**进去。
+
+```javascript
+alert("如果看到这个弹窗，说明 index.js 已经成功运行！");
