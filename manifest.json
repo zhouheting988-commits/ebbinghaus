@@ -1,8 +1,8 @@
 {
-    "name": "EbbinghausTrainer",
-    "display_name": "艾宾浩斯词汇导师 (Ebbinghaus Trainer)",
+    "name": "EbbinghausFinalTest",
+    "display_name": "艾宾浩斯词汇导师 (最终测试版)",
     "author": "Dauvier & Gemini",
-    "version": "0.1.0",
-    "description": "一个基于艾宾浩斯遗忘曲线的单词记忆和复习插件。",
+    "version": "1.0.0",
+    "description": "一个用于测试插件入口是否能正常显示的最小化版本。",
     "entryScript": "index.js"
 }
