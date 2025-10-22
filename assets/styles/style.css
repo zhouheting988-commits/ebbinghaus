@@ -1,0 +1,39 @@
+/* --- 核心变量 (保留) --- */
+.--SmartThemeBodyColor {}
+/* ... 其他 SmartTheme 变量 ... */
+
+/* --- 表格基础样式 (保留) --- */
+.tableDom {
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+.tableDom td,
+.tableDom th {
+    border: 1px solid #4e4848;
+    padding: 3px 5px;
+}
+td.selected {
+    background-color: rgb(56, 66, 70);
+}
+
+/* --- 变化高亮样式 (保留) --- */
+.insert-item {
+    background-color: #00ff0011;
+}
+.update-item {
+    background-color: #0000ff11;
+}
+.delete-item {
+    background-color: #ff000011;
+}
+
+/* --- 插件设置面板基础样式 (保留部分) --- */
+.memory_enhancement_settings .menu_button {
+    width: fit-content;
+    display: flex;
+    gap: 10px;
+    flex-direction: row;
+}
+/* ... 其他需要的最小化设置样式 ... */
+
+/* --- 其他所有不再使用的UI组件样式均已删除 --- */
