@@ -13,7 +13,6 @@ import { generateRandomString } from "../utils/utility.js";
 // 我们只保留了与刷新“数据”视图相关的函数，其他UI管理的JS可以后续一并删除
 import { refreshContextView } from "../scripts/editor/chatSheetsDataView.js"; 
 // 这个函数是用来在UI上更新状态的，虽然UI简化了，但保留它是个好习惯
-import { updateSystemMessageTableStatus } from "../scripts/renderer/tablePushToChat.js";
 
 
 let derivedData = {};
@@ -56,7 +55,6 @@ export const BASE = {
     Sheet: TTable.Sheet,
     SheetTemplate: TTable.Template,
     refreshContextView: refreshContextView,
-    updateSystemMessageTableStatus: updateSystemMessageTableStatus,
     get templates() {
         return USER.loadUserAllTemplates();
     },
