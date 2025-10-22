@@ -1,0 +1,30 @@
+<!-- manager.html -->
+<div class="wide100p padding5 dataBankAttachments" id="table_manager_container">
+    <small data-i18n="managerDescription">
+        此处显示艾宾浩斯学习系统的核心数据表。数据由AI根据学习进度自动更新。
+    </small>
+    <hr />
+
+    <!-- 删除了顶部复杂的工具栏 -->
+
+    <!-- 
+        版本切换功能对于调试可能有用，可以暂时保留，如果觉得没用也可以删除。
+        我们先保留它。
+    -->
+    <div style="display: flex; justify-content: space-between; ">
+        <div style="display: flex; justify-content: center" id="table_prev_button" title="前一个版本">
+            <i class="menu_button menu_button_icon fa-solid">&lt; 上一个版本</i>
+        </div>
+        <div id="table_indicator">当前为最新版本</div>
+        <div style="display: flex; justify-content: center" id="table_next_button" title="后一个版本">
+            <i class="menu_button menu_button_icon fa-solid">下一个版本 &gt;</i>
+        </div>
+    </div>
+    <hr />
+
+    <!-- 核心的表格容器必须保留 -->
+    <div id="contentContainer">
+        <div id="tableContainer">
+        </div>
+    </div>
+</div>
