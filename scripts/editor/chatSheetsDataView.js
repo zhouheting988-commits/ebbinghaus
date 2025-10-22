@@ -1,14 +1,36 @@
-import { BASE, DERIVED, EDITOR, SYSTEM, USER } from '../../core/manager.js';
-// ... 只保留需要的 import ...
+// MODIFIED FOR EBBINGHAUS LEARNING SYSTEM - SAFE SIMPLIFIED VERSION
+import { BASE, DERIVED, EDITOR, SYSTEM } from '../../core/manager.js';
 
-// ... 删除所有 copy, paste, import, export, clear, cellEdit, cellHistory 等函数 ...
+let viewSheetsContainer = null;
+let initializedTableView = null;
 
+/**
+ * 核心渲染函数：将表格数据显示为只读视图。
+ * @param {number} mesId - 要渲染的消息ID，-1表示最新。
+ */
 async function renderSheetsDOM(mesId = -1) {
-    // ... (获取 piece 和 sheets 的逻辑保留) ...
+    // 获取要渲染的 piece 和 sheets 数据
+    const { deep: lastestDeep, piece: lastestPiece } = BASE.getLastSheetsPiece();
+    const { piece, deep } = mesId === -1 ? { piece: lastestPiece, deep: lastestDeep } : { piece: USER.getContext().chat[mesId], deep: mesId };
+
+    // 如果没有数据，则不执行任何操作
+    if (!piece || !piece.hash_sheets) {
+        if (viewSheetsContainer) $(viewSheetsContainer).empty().append('<p>当前没有可显示的表格数据。</p>');
+        $("#table_indicator").text("无数据");
+        return;
+    };
+
+    // 更新状态
+    DERIVED.any.isRenderLastest = (deep === lastestDeep);
+    DERIVED.any.renderDeep = deep;
+
+    const sheets = BASE.hashSheetsToSheets(piece.hash_sheets);
+    DERIVED.any.renderingSheets = sheets;
+
+    // 清空容器
+    if (viewSheetsContainer) $(viewSheetsContainer).empty();
     
-    $(viewSheetsContainer).empty();
-    
-    // 简化版的渲染调用
+    // 遍历并渲染每一个启用的表格
     for (let [index, sheet] of sheets.entries()) {
         if (!sheet.enable) continue;
         
@@ -18,8 +40,8 @@ async function renderSheetsDOM(mesId = -1) {
 
         // 核心改造：调用 renderSheet 时，传入一个空的回调函数，让表格变成只读
         const sheetElement = await sheet.renderSheet((cell) => {
-            // Do nothing, cells are not clickable.
-            cell.element.style.cursor = 'default'; // 设置鼠标指针为默认样式
+            // 设置鼠标指针为默认样式，表示不可交互
+            cell.element.style.cursor = 'default';
         });
 
         $(sheetContainer).append(sheetElement);
@@ -28,26 +50,76 @@ async function renderSheetsDOM(mesId = -1) {
         $(viewSheetsContainer).append(`<hr>`);
     }
 
-    $("#table_indicator").text(DERIVED.any.isRenderLastest ? "当前为最新数据" : `正在查看第${deep}轮对话的数据`);
+    // 更新版本指示器文本
+    $("#table_indicator").text(DERIVED.any.isRenderLastest ? "当前为最新数据" : `正在查看历史数据 (第${deep}轮)`);
 }
 
-async function initTableView(mesId) {
-    // ... (加载 manager.html 的逻辑保留) ...
+/**
+ * 初始化“数据”标签页的视图和事件监听器。
+ * 这个函数只会在第一次打开“数据”页时执行一次。
+ */
+async function initTableView() {
+    // 加载HTML模板
+    initializedTableView = $(await SYSTEM.getTemplate('manager')).get(0);
+    viewSheetsContainer = initializedTableView.querySelector('#tableContainer');
 
-    // 大幅简化的事件绑定
+    // 只绑定我们需要的事件：版本切换
     // 点击前一个版本按钮
     $(document).on('click', '#table_prev_button', function () {
-        // ... (保留版本切换逻辑) ...
+        const deep = DERIVED.any.renderDeep;
+        // 注意：原版插件的getLastSheetsPiece函数我们已在manager.js中简化，这里直接使用
+        const { deep: prevDeep } = BASE.getLastSheetsPiece(deep - 1, 20, false);
+        if (prevDeep === -1) {
+            EDITOR.info("没有更早的表格数据了。");
+            return;
+        }
+        refreshContextView(prevDeep);
     });
 
     // 点击后一个版本按钮
     $(document).on('click', '#table_next_button', function () {
-        // ... (保留版本切换逻辑) ...
+        const deep = DERIVED.any.renderDeep;
+        const { deep: nextDeep } = BASE.getLastSheetsPiece(deep + 1, 20, false, "down");
+        if (nextDeep === -1) {
+            EDITOR.info("没有更新的表格数据了。");
+            return;
+        }
+        refreshContextView(nextDeep);
     });
-
-    // ... (删除所有其他按钮的事件绑定) ...
 
     return initializedTableView;
 }
 
-// ... (保留 refreshContextView 和 getChatSheetsView 函数，它们是外部入口) ...
+/**
+ * 刷新视图的公共入口函数。
+ * @param {number} mesId - 要渲染的消息ID，-1表示最新。
+ */
+export async function refreshContextView(mesId = -1) {
+    // 防止重复刷新
+    if (BASE.contextViewRefreshing) return;
+    BASE.contextViewRefreshing = true;
+
+    try {
+        await renderSheetsDOM(mesId);
+    } catch (error) {
+        console.error("Error refreshing context view:", error);
+        EDITOR.error("刷新表格视图时出错", error.message);
+    } finally {
+        BASE.contextViewRefreshing = false;
+    }
+}
+
+/**
+ * 获取“数据”标签页视图的外部入口函数。
+ */
+export async function getChatSheetsView(mesId = -1) {
+    if (initializedTableView) {
+        // 如果视图已初始化，只需刷新内容
+        await refreshContextView(mesId);
+        return initializedTableView;
+    }
+    // 否则，先初始化视图，然后刷新内容
+    const view = await initTableView();
+    await refreshContextView(mesId);
+    return view;
+}
