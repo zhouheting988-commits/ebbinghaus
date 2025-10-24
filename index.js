@@ -1,6 +1,6 @@
-// Ebbinghaus Trainer · robust entry for mobile
+// Ebbinghaus Trainer · toolbar icon entry (no floating button)
 (function () {
-  // —— 统一的面板（现在是占位，验证入口用） ——
+  // —— 面板（占位：确认入口可用，后续把真逻辑接到三个按钮） ——
   function openPanel() {
     let panel = document.getElementById('eb-trainer-panel');
     if (!panel) {
@@ -19,7 +19,7 @@
         </div>
         <div style="font-size:13px;color:#666;line-height:1.5;">
           入口就绪 ✅（扩展已运行）<br/>
-          这三枚按钮当前为占位，用来验证事件钩子；下一步我会把真实逻辑接上。
+          这三枚按钮目前为占位，用来验证事件钩子；下一步把真逻辑接进来。
         </div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
           <button id="eb-start"  style="padding:6px 10px;border-radius:8px;">开始学习（空）</button>
@@ -35,25 +35,54 @@
     }
   }
 
-  // —— 入口#1：浮动按钮（移动端稳定可见） ——
-  function addFloatingButton() {
-    if (document.getElementById('eb-fab')) return;
-    const btn = document.createElement('button');
-    btn.id = 'eb-fab';
-    btn.textContent = '记忆表';
-    Object.assign(btn.style, {
-      position: 'fixed', left: '16px', top: '16px',
-      zIndex: 2147483647,
-      padding: '10px 14px', borderRadius: '12px', border: '1px solid #999',
-      background: '#fff', boxShadow: '0 2px 10px rgba(0,0,0,.2)', cursor: 'pointer'
-    });
-    btn.onclick = openPanel;
-    document.body.appendChild(btn);
+  // —— 顶部工具栏图标（优先采用官方 API，标签只用 Emoji 图标，不显示文字） ——
+  function addToolbarIcon() {
+    try {
+      const ctx = window.SillyTavern?.getContext?.();
+      const es = ctx?.eventSource, et = ctx?.event_types;
+      const addBtn = ctx?.addToolbarButton || ctx?.ui?.addToolbarButton;
+
+      if (es && et && typeof addBtn === 'function') {
+        es.on(et.APP_READY, () => {
+          // 仅用 emoji 作为“按钮标题”，能显著降低被折叠到“更多”的概率
+          addBtn('📚', openPanel);
+          console.log('[EbbinghausTrainer] toolbar emoji button registered');
+        });
+      }
+
+      // Fallback：直接往设置按钮旁边插入一个小图标（即使官方 API 在某些版本不可用，也有图标）
+      setTimeout(() => {
+        if (document.getElementById('eb-toolbar-icon')) return;
+        const anchor = document.getElementById('extensions-settings-button') ||
+                       document.querySelector('#extensions-settings-button') ||
+                       document.querySelector('.extensions-settings-button');
+
+        if (anchor && anchor.parentNode) {
+          const btn = document.createElement('button');
+          btn.id = 'eb-toolbar-icon';
+          btn.title = '艾宾浩斯词汇导师';
+          btn.textContent = '📚';
+          Object.assign(btn.style, {
+            marginLeft: '8px',
+            padding: '4px 8px',
+            border: '1px solid var(--SmartThemeBorderColor, #999)',
+            background: 'var(--SmartThemeBodyColor, #fff)',
+            borderRadius: '8px',
+            lineHeight: '1',
+            cursor: 'pointer'
+          });
+          btn.addEventListener('click', openPanel);
+          anchor.parentNode.insertBefore(btn, anchor.nextSibling);
+          console.log('[EbbinghausTrainer] toolbar emoji fallback injected');
+        }
+      }, 1200);
+    } catch (e) {
+      console.warn('[EbbinghausTrainer] addToolbarIcon failed', e);
+    }
   }
 
-  // —— 入口#2：本地斜杠命令（不依赖 ST 的 registerSlashCommand） ——
+  // —— 本地斜杠命令（/记忆表 或 /eb 或 /memory） ——
   function addLocalSlash() {
-    // 监听“发送”动作：回车 或 发送按钮
     const tryBind = () => {
       const input = document.getElementById('send_textarea') || document.querySelector('textarea');
       const sendBtn = document.querySelector('#send_button, #send_message_button, #send_now, .send_button');
@@ -78,30 +107,21 @@
       if (sendBtn) {
         sendBtn.addEventListener('click', () => { tryOpen(); }, true);
       }
-
-      // 打开输入框获得焦点时提示一次
-      input.addEventListener('focus', () => {
-        input.placeholder = (input.placeholder || '') + ' （输入 /记忆表 可打开面板）';
-      }, { once: true });
-
       return true;
     };
 
-    // 输入框是动态渲染的，延迟多试几次
     let tries = 0;
     const timer = setInterval(() => {
       if (tryBind() || ++tries > 10) clearInterval(timer);
     }, 500);
   }
 
-  // —— 入口#3：消息卡片按钮（每条 AI 消息旁边出现一个“记忆表”） ——
+  // —— 消息卡片按钮（每条 AI 消息“更多”按钮那行会多一枚“记忆表”） ——
   function addMessageButton() {
-    // 用事件代理，适配后续渲染的消息
     document.addEventListener('click', (e) => {
       const el = e.target.closest('.eb-open-panel');
       if (el) openPanel();
     });
-    // 首次渲染时试着挂一点
     const inject = () => {
       document.querySelectorAll('.extraMesButtons').forEach(box => {
         if (box.querySelector('.eb-open-panel')) return;
@@ -112,36 +132,15 @@
         box.appendChild(div);
       });
     };
-    // 多试几次，适配移动端延迟渲染
     let count = 0;
     const t = setInterval(() => { inject(); if (++count > 10) clearInterval(t); }, 800);
   }
 
-  // ——（可选）尝试注册官方 toolbar / slash（部分版本可能不可见） ——
-  function tryOfficialEntries() {
-    try {
-      const ctx = window.SillyTavern?.getContext?.();
-      const es = ctx?.eventSource, et = ctx?.event_types;
-      const addBtn = ctx?.addToolbarButton || ctx?.ui?.addToolbarButton;
-      const regSlash = ctx?.registerSlashCommand || window.registerSlashCommand;
-
-      if (es && et && typeof addBtn === 'function') {
-        es.on(et.APP_READY, () => addBtn('记忆表', openPanel));
-      }
-      if (typeof regSlash === 'function') {
-        regSlash('记忆表', '打开艾宾浩斯词汇导师', openPanel);
-      }
-    } catch (e) {
-      console.log('[EbbinghausTrainer] official entries unavailable on this build');
-    }
-  }
-
   function init() {
-    addFloatingButton();
-    addLocalSlash();
-    addMessageButton();
-    tryOfficialEntries(); // 能用就用，不能用就靠上面三个入口
-    console.log('[EbbinghausTrainer] entry initialized');
+    addToolbarIcon();   // 顶部“📚”图标（首选）
+    addLocalSlash();    // /记忆表 /eb /memory
+    addMessageButton(); // 卡片行“记忆表”按钮
+    console.log('[EbbinghausTrainer] entry (toolbar icon) initialized');
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
