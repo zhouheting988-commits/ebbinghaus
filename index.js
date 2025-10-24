@@ -137,7 +137,107 @@
   }
 
   function init() {
-    addToolbarIcon();   // 顶部“📚”图标（首选）
+    // —— 顶部工具栏“同款样式”图标按钮 ——
+// 会优先使用官方 API；若仍是文字按钮，则克隆隔壁按钮样式并换成书本SVG
+function addToolbarIcon() {
+  try {
+    const ctx = window.SillyTavern?.getContext?.();
+    const es = ctx?.eventSource, et = ctx?.event_types;
+    const addBtn = ctx?.addToolbarButton || ctx?.ui?.addToolbarButton;
+
+    // 1) 先试官方API（有些主题会自动套同款样式）
+    if (es && et && typeof addBtn === 'function') {
+      es.on(et.APP_READY, () => {
+        const el = addBtn(' ', openPanel); // 占位文本为空
+        // 把文字按钮内容替换成SVG图标
+        try {
+          if (el) {
+            el.innerHTML = ''; // 清空文字
+            el.title = '艾宾浩斯词汇导师';
+            el.style.display = 'flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            const svg = makeBookIconSVG();
+            el.appendChild(svg);
+          }
+        } catch {}
+        console.log('[EbbinghausTrainer] toolbar button via API');
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn('[EbbinghausTrainer] addToolbarIcon API path failed', e);
+  }
+
+  // 2) Fallback：克隆“设置”按钮同款样式，插入到它旁边
+  setTimeout(() => {
+    if (document.getElementById('eb-toolbar-icon')) return;
+
+    // 取一个现成的同款按钮做模板（设置齿轮最稳）
+    const template =
+      document.getElementById('extensions-settings-button') ||
+      document.querySelector('#extensions-settings-button') ||
+      document.querySelector('.extensions-settings-button') ||
+      document.querySelector('.menu_button, .menu_button_icon, .top_button');
+
+    if (!template || !template.parentNode) return;
+
+    // 用“外观克隆”的方式新建按钮（不复制原有监听器）
+    const btn = document.createElement('button');
+    btn.id = 'eb-toolbar-icon';
+    btn.type = 'button';
+    btn.title = '艾宾浩斯词汇导师';
+    // 同款类名
+    btn.className = template.className || 'menu_button';
+    // 同款尺寸 & 基础样式（避免主题差异）
+    const cs = getComputedStyle(template);
+    Object.assign(btn.style, {
+      width: cs.width,
+      height: cs.height,
+      borderRadius: cs.borderRadius,
+      padding: cs.padding,
+      background: cs.backgroundColor || 'var(--SmartThemeBodyColor,#fff)',
+      border: cs.border || `1px solid var(--SmartThemeBorderColor,#999)`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      lineHeight: '1'
+    });
+
+    // 放入描边风格SVG，随主题色变
+    const svg = makeBookIconSVG();
+    btn.appendChild(svg);
+
+    btn.addEventListener('click', openPanel);
+    template.parentNode.insertBefore(btn, template.nextSibling);
+    console.log('[EbbinghausTrainer] toolbar icon cloned-injected');
+  }, 800);
+}
+
+// —— 统一的书本图标（描边，随主题色/文字色变） ——
+// 想换图标只要改这里的 <path/>
+function makeBookIconSVG() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '20');
+  svg.setAttribute('height', '20');
+  svg.style.display = 'block';
+  svg.style.color = 'var(--SmartThemeIconColor, currentColor)';
+
+  // Heroicons风格的“book-open”描边
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d',
+    'M12 6.75c-2.49-1.2-5.02-1.5-7.5-.75v10.5c2.48-.75 5.01-.45 7.5.75m0-10.5c2.49-1.2 5.02-1.5 7.5-.75v10.5c-2.48-.75-5.01-.45-7.5.75m0-10.5v10.5'
+  );
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.5');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+
+  svg.appendChild(path);
+  return svg;
+}
     addLocalSlash();    // /记忆表 /eb /memory
     addMessageButton(); // 卡片行“记忆表”按钮
     console.log('[EbbinghausTrainer] entry (toolbar icon) initialized');
