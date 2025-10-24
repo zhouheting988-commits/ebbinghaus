@@ -1,14 +1,9 @@
 {
-    "name": "ebbinghaus-trainer",
-    "display_name": "艾宾浩斯词汇导师 (Ebbinghaus Trainer)",
-    "description": "一个基于艾宾浩斯记忆曲线的单词记忆表格插件。",
-    "author": "Dauvier & Gemini",
-    "version": "0.1.0",
-    "minSillyTavernVersion": "1.10.0",
-    "requires": [],
-    "optional": [],
-    "loading_order": 101,
-    "js": "index.js",
-    "css": ["style.css"],
-    "homePage": "https://github.com/zhouheting988-commits/ebbinghaus"
+  "display_name": "Memory Sheet (Test)",
+  "loading_order": 10,
+  "js": "index.js",
+  "author": "Dauvier",
+  "version": "0.0.1",
+  "homePage": "https://example.com",
+  "auto_update": false
 }
