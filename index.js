@@ -793,4 +793,163 @@
             overlayEl.style.boxSizing = 'border-box';
 
             // 点击遮罩空白 -> 关闭
-           
+            overlayEl.addEventListener('click', (ev) => {
+                if (ev.target === overlayEl) hideOverlay();
+            }, true);
+
+            overlayCardEl = document.createElement('div');
+            overlayCardEl.id = 'ebb_overlay_card';
+            overlayCardEl.style.background = 'rgba(20,20,20,0.95)';
+            overlayCardEl.style.borderRadius = '12px';
+            overlayCardEl.style.border = '1px solid rgba(255,255,255,0.2)';
+            overlayCardEl.style.color = '#fff';
+            overlayCardEl.style.width = '90%';
+            overlayCardEl.style.maxWidth = '500px';
+            overlayCardEl.style.maxHeight = '80vh';
+            overlayCardEl.style.overflowY = 'auto';
+            overlayCardEl.style.padding = '16px 16px 20px 16px';
+            overlayCardEl.style.boxShadow = '0 24px 60px rgba(0,0,0,0.8)';
+            overlayCardEl.style.fontFamily = '"Inter","PingFang SC","Microsoft YaHei",sans-serif';
+
+            overlayEl.appendChild(overlayCardEl);
+            document.body.appendChild(overlayEl);
+        }
+
+        overlayCardEl.innerHTML = buildOverlayOuterHTML();
+        bindOverlayInnerEvents();
+        overlayEl.style.display = 'flex';
+    }
+
+    function hideOverlay() {
+        if (overlayEl) {
+            overlayEl.style.display = 'none';
+        }
+    }
+
+    function toggleOverlay() {
+        if (!overlayEl || overlayEl.style.display === 'none') {
+            showOverlay();
+        } else {
+            hideOverlay();
+        }
+    }
+
+    function bindOverlayInnerEvents() {
+        if (!overlayCardEl) return;
+
+        // 关闭按钮
+        const closeBtn = overlayCardEl.querySelector('#ebb_close_btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                hideOverlay();
+            }, true);
+        }
+
+        // Tab切换按钮
+        overlayCardEl.querySelectorAll('.ebb_tab_btn').forEach(btn => {
+            btn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const idx = parseInt(btn.getAttribute('data-tab-index'), 10);
+                activeTabIndex = idx;
+                overlayCardEl.innerHTML = buildOverlayOuterHTML();
+                bindOverlayInnerEvents();
+            }, true);
+        });
+
+        // 轮次按钮（仅在第4页）
+        overlayCardEl.querySelectorAll('.ebb_round_btn').forEach(btn => {
+            btn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const act = btn.getAttribute('data-round-action');
+                if (act === 'next') {
+                    nextRound();
+                } else if (act === 'set1') {
+                    setRound(1);
+                } else if (act === 'set2') {
+                    setRound(2);
+                } else if (act === 'set3') {
+                    setRound(3);
+                }
+                // 重新渲染当前tab
+                overlayCardEl.innerHTML = buildOverlayOuterHTML();
+                bindOverlayInnerEvents();
+            }, true);
+        });
+    }
+
+    // ======================================================
+    // 顶栏学士帽按钮 注入
+    // ======================================================
+    function insertTopButtonIfMissing() {
+        if (topButtonEl && document.body.contains(topButtonEl)) return;
+
+        const probe =
+            document.querySelector('#extensions-settings-button') ||
+            document.querySelector('#sys-settings-button') ||
+            document.querySelector('.extensions-settings-button') ||
+            document.querySelector('.menu_button');
+
+        if (!probe || !probe.parentNode) return;
+        const toolbar = probe.parentNode;
+
+        topButtonEl = document.createElement('div');
+        topButtonEl.id = 'ebb_toolbar_btn';
+        topButtonEl.className = 'menu_button';
+        topButtonEl.style.display = 'flex';
+        topButtonEl.style.alignItems = 'center';
+        topButtonEl.style.justifyContent = 'center';
+        topButtonEl.style.minWidth = '32px';
+        topButtonEl.style.minHeight = '32px';
+        topButtonEl.style.padding = '6px';
+        topButtonEl.style.borderRadius = '6px';
+        topButtonEl.style.cursor = 'pointer';
+        topButtonEl.style.userSelect = 'none';
+
+        // 保留 🎓 外观，和你喜欢的那个小帽子位置一致
+        topButtonEl.innerHTML = `
+            <span style="font-size:18px;line-height:18px;filter:brightness(1.2);">🎓</span>
+        `;
+
+        topButtonEl.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            toggleOverlay();
+        }, true);
+
+        toolbar.appendChild(topButtonEl);
+        console.log(`[${EXT_NAME}] Topbar study button inserted.`);
+    }
+
+    // ======================================================
+    // 启动
+    // ======================================================
+    function init() {
+        if (uiReady) return;
+        uiReady = true;
+        loadData();
+
+        let tries = 0;
+        const maxTries = 100;
+        const intv = setInterval(() => {
+            tries++;
+            insertTopButtonIfMissing();
+            if (topButtonEl) {
+                clearInterval(intv);
+                console.log(`[${EXT_NAME}] UI injection complete.`);
+            } else if (tries >= maxTries) {
+                clearInterval(intv);
+                console.warn(`[${EXT_NAME}] Failed to locate toolbar for top button.`);
+            }
+        }, 200);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+        init();
+    }
+})();
