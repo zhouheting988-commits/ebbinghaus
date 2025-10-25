@@ -490,140 +490,86 @@ const defaultData = {
     // 找出所有天里 Review 数组的最大长度 = maxReviewLen
     // 然后生成 Review1..ReviewN 列头
     // ======================================================
-    function buildTabScheduleHTML() {
-    // 确保有最新数据
-    const sched = EbbData.Ebbinghaus_Schedule || {};
+    // ------------------------------------------
+// 数据区：默认存档骨架（已按你的计划表更新）
+// ------------------------------------------
+const defaultData = {
+    Vocabulary_Mastery: {
+        // 运行时会自动生成：
+        // "Day_1": {
+        //     Level_0_New: [],
+        //     Level_1: [],
+        //     Level_2: [],
+        //     Level_3: [],
+        //     Level_4: [],
+        //     Level_5_Mastered_Today: [],
+        // }
+    },
 
-    // 取所有天数，按数字从小到大排
-    const days = Object.keys(sched)
-        .map(d => parseInt(d, 10))
-        .sort((a, b) => a - b);
+    // 每天结束后打包出来的毕业清单
+    // 比如 Day 1 结束后把完全掌握的词放进 List1
+    Word_Lists: {
+        // "List1": ["wordA","wordB",...]
+    },
 
-    // 左侧表：Day / NewList / Review1
-    let leftRows = '';
-    for (const dayNum of days) {
-        const entry = sched[String(dayNum)] || { NewList: '', Review: [] };
-        const review1 = entry.Review[0] || '…';
+    // === 这是你那张“艾宾浩斯遗忘曲线复习计划表” ===
+    // Round 1（第一轮=单词阶段）专用的日程。
+    //
+    // 解释：
+    // "1":  { NewList: "List1",  Review: [] }
+    // 代表：
+    //   Day 1 这天要新背的词包是 List1
+    //   复习旧词列表为空
+    //
+    // "6":  { NewList: "List6",  Review: ["List2","List4","List5"] }
+    // 代表：
+    //   Day 6 新背 List6
+    //   同时复习 List2 / List4 / List5
+    //
+    Ebbinghaus_Schedule: {
+        "1":  { NewList: "List1",  Review: [] },
+        "2":  { NewList: "List2",  Review: ["List1"] },
+        "3":  { NewList: "List3",  Review: ["List1", "List2"] },
+        "4":  { NewList: "List4",  Review: ["List2", "List3"] },
+        "5":  { NewList: "List5",  Review: ["List1", "List3", "List4"] },
+        "6":  { NewList: "List6",  Review: ["List2", "List4", "List5"] },
+        "7":  { NewList: "List7",  Review: ["List3", "List5", "List6"] },
+        "8":  { NewList: "List8",  Review: ["List1", "List4", "List6", "List7"] },
+        "9":  { NewList: "List9",  Review: ["List2", "List5", "List7", "List8"] },
+        "10": { NewList: "List10", Review: ["List3", "List6", "List8", "List9"] },
 
-        leftRows += `
-            <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${dayNum}</td>
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${entry.NewList || '—'}</td>
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${review1}</td>
-            </tr>
-        `;
-    }
+        // 从 Day11 往后，你的表进入“回收阶段”
+        // 不再新增 List11、List12…，而是开始把旧List再次拉出来复查
+        "11": { NewList: "List4",  Review: ["List7", "List9", "List10"] },
+        "12": { NewList: "List5",  Review: ["List8", "List10"] },
+        "13": { NewList: "List6",  Review: ["List9"] },
+        "14": { NewList: "List7",  Review: ["List10"] },
+        "15": { NewList: "List8",  Review: [] },
+        "16": { NewList: "List1",  Review: ["List9"] },
+        "17": { NewList: "List2",  Review: ["List10"] },
+        "18": { NewList: "List3",  Review: [] },
+        "19": { NewList: "List4",  Review: [] },
+        "20": { NewList: "List5",  Review: [] },
+        "21": { NewList: "List6",  Review: [] },
+        "22": { NewList: "List7",  Review: [] },
+        "23": { NewList: "List8",  Review: [] },
+        "24": { NewList: "List9",  Review: [] },
+        "25": { NewList: "List10", Review: [] },
+    },
 
-    // 右侧表：Review2 / Review3 / Review4 / Review5
-    // （手机宽度的原因，我们把第2列以后都塞到右边这张表里）
-    let rightRows = '';
-    for (const dayNum of days) {
-        const entry = sched[String(dayNum)] || { Review: [] };
-
-        const review2 = entry.Review[1] || '…';
-        const review3 = entry.Review[2] || '…';
-        const review4 = entry.Review[3] || '…';
-        const review5 = entry.Review[4] || '…';
-
-        rightRows += `
-            <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${review2}</td>
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${review3}</td>
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${review4}</td>
-                <td style="padding:6px 10px; color:#fff; font-size:14px; white-space:nowrap;">${review5}</td>
-            </tr>
-        `;
-    }
-
-    // 整个块：
-    // 1. 最上面那行小说明不用改
-    // 2. 我们做了一个外层 scrollContainer，有 max-height 和 overflow-y:auto
-    //    → 这样你就可以往下滑从 Day1 一直看到 Day25，不再卡在前5行
-    // 3. scrollContainer 里面是两个 table 横着摆，
-    //    你可以左右轻轻拖一下，把右半边 (Review2~Review5) 看出来
-    return `
-        <div style="color:#ddd;font-size:14px;line-height:1.4;margin-bottom:12px;">
-            每天要学的新词(NewList) + 要复习的旧词组(Review列)。
-        </div>
-
-        <div style="
-            border:1px solid rgba(255,255,255,0.25);
-            border-radius:8px;
-            background:rgba(0,0,0,0.2);
-            padding:8px 10px;
-        ">
-
-            <div style="
-                max-height:220px;
-                overflow-y:auto;
-                /* 我们让竖向滚动在这个容器里发生 */
-            ">
-
-                <div style="
-                    display:flex;
-                    flex-wrap:nowrap;
-                    gap:12px;
-                    overflow-x:auto;
-function buildTabScheduleHTML() {
-    const sched = EbbData.Ebbinghaus_Schedule || {};
-    const days = Object.keys(sched).map(n => parseInt(n, 10)).sort((a,b)=>a-b);
-
-    let leftRows = '';
-    for (const d of days) {
-        const e = sched[String(d)] || { NewList:'', Review:[] };
-        leftRows += `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${d}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${e.NewList || '—'}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${e.Review?.[0] || '…'}</td>
-        </tr>`;
-    }
-
-    let rightRows = '';
-    for (const d of days) {
-        const r = (sched[String(d)]?.Review) || [];
-        rightRows += `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[1] || '…'}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[2] || '…'}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[3] || '…'}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[4] || '…'}</td>
-        </tr>`;
-    }
-
-    return `
-    <div style="color:#ddd;font-size:14px;line-height:1.4;margin-bottom:12px;">
-        每天要学的新词(NewList) + 要复习的旧词组(Review列)。
-    </div>
-    <div style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(0,0,0,0.2);padding:8px 10px;">
-        <div style="max-height:240px;overflow-y:auto;">
-            <div style="display:flex;gap:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-                <table style="border-collapse:collapse;min-width:220px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <thead style="background:rgba(255,255,255,0.07);">
-                        <tr>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Day</th>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">NewList</th>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review1</th>
-                        </tr>
-                    </thead>
-                    <tbody>${leftRows}</tbody>
-                </table>
-
-                <table style="border-collapse:collapse;min-width:260px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;flex-shrink:0;">
-                    <thead style="background:rgba(255,255,255,0.07);">
-                        <tr>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review2</th>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review3</th>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review4</th>
-                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review5</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rightRows}</tbody>
-                </table>
-            </div>
-        </div>
-    </div>`;
-}
+    // 学习控制信息（保持不动）
+    //
+    // Current_Day: 现在是第几天（不是现实日历，是训练进度）
+    // Current_Round: 当前是第几轮
+    //   1 = 单词轮 (Round 1: 纯单词)
+    //   2 = 短语轮 (Round 2: 短语搭配)
+    //   3 = 句子轮 (Round 3: 整句+知识点)
+    //
+    Study_Control: {
+        Current_Day: 1,
+        Current_Round: 1,   // 保持轮次系统不变，UI第4页会读这个
+    },
+};
 
     // ======================================================
     // 分页4：学习控制 (Study_Control + 轮次按钮)
