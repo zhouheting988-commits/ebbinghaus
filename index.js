@@ -35,29 +35,86 @@
     const EXT_NAME = 'EbbinghausTrainer';
     const STORAGE_KEY = 'EbbinghausTrainerData_v2';
 
-    // -----------------------------
-    // 默认数据骨架
-    // -----------------------------
-    const defaultData = {
-        Vocabulary_Mastery: {
-            // "Day_1": { Level_0_New:[], Level_1:[], ..., Level_5_Mastered_Today:[] }
-        },
-        Word_Lists: {
-            // "List1": ["create","desire","help", ...]
-        },
-        Ebbinghaus_Schedule: {
-            "1": { NewList: "List1", Review: [] },
-            "2": { NewList: "List2", Review: ["List1"] },
-            "3": { NewList: "List3", Review: ["List1","List2"] },
-            "4": { NewList: "List4", Review: ["List2","List3"] },
-            "5": { NewList: "List5", Review: ["List1","List3","List4"] },
-        },
-        Study_Control: {
-            Current_Day: 1,
-            Current_Round: 1, // 1=单词, 2=短语, 3=句子
-        },
-    };
+// ------------------------------------------
+// 数据区：默认存档骨架（已按你的计划表更新）
+// ------------------------------------------
+const defaultData = {
+    Vocabulary_Mastery: {
+        // 运行时会自动生成：
+        // "Day_1": {
+        //     Level_0_New: [],
+        //     Level_1: [],
+        //     Level_2: [],
+        //     Level_3: [],
+        //     Level_4: [],
+        //     Level_5_Mastered_Today: [],
+        // }
+    },
 
+    // 每天结束后打包出来的毕业清单
+    // 比如 Day 1 结束后把完全掌握的词放进 List1
+    Word_Lists: {
+        // "List1": ["wordA","wordB",...]
+    },
+
+    // === 这是你那张“艾宾浩斯遗忘曲线复习计划表” ===
+    // Round 1（第一轮=单词阶段）专用的日程。
+    //
+    // 解释：
+    // "1":  { NewList: "List1",  Review: [] }
+    // 代表：
+    //   Day 1 这天要新背的词包是 List1
+    //   复习旧词列表为空
+    //
+    // "6":  { NewList: "List6",  Review: ["List2","List4","List5"] }
+    // 代表：
+    //   Day 6 新背 List6
+    //   同时复习 List2 / List4 / List5
+    //
+    Ebbinghaus_Schedule: {
+        "1":  { NewList: "List1",  Review: [] },
+        "2":  { NewList: "List2",  Review: ["List1"] },
+        "3":  { NewList: "List3",  Review: ["List1", "List2"] },
+        "4":  { NewList: "List4",  Review: ["List2", "List3"] },
+        "5":  { NewList: "List5",  Review: ["List1", "List3", "List4"] },
+        "6":  { NewList: "List6",  Review: ["List2", "List4", "List5"] },
+        "7":  { NewList: "List7",  Review: ["List3", "List5", "List6"] },
+        "8":  { NewList: "List8",  Review: ["List1", "List4", "List6", "List7"] },
+        "9":  { NewList: "List9",  Review: ["List2", "List5", "List7", "List8"] },
+        "10": { NewList: "List10", Review: ["List3", "List6", "List8", "List9"] },
+
+        // 从 Day11 往后，你的表进入“回收阶段”
+        // 不再新增 List11、List12…，而是开始把旧List再次拉出来复查
+        "11": { NewList: "List4",  Review: ["List7", "List9", "List10"] },
+        "12": { NewList: "List5",  Review: ["List8", "List10"] },
+        "13": { NewList: "List6",  Review: ["List9"] },
+        "14": { NewList: "List7",  Review: ["List10"] },
+        "15": { NewList: "List8",  Review: [] },
+        "16": { NewList: "List1",  Review: ["List9"] },
+        "17": { NewList: "List2",  Review: ["List10"] },
+        "18": { NewList: "List3",  Review: [] },
+        "19": { NewList: "List4",  Review: [] },
+        "20": { NewList: "List5",  Review: [] },
+        "21": { NewList: "List6",  Review: [] },
+        "22": { NewList: "List7",  Review: [] },
+        "23": { NewList: "List8",  Review: [] },
+        "24": { NewList: "List9",  Review: [] },
+        "25": { NewList: "List10", Review: [] },
+    },
+
+    // 学习控制信息（保持不动）
+    //
+    // Current_Day: 现在是第几天（不是现实日历，是训练进度）
+    // Current_Round: 当前是第几轮
+    //   1 = 单词轮 (Round 1: 纯单词)
+    //   2 = 短语轮 (Round 2: 短语搭配)
+    //   3 = 句子轮 (Round 3: 整句+知识点)
+    //
+    Study_Control: {
+        Current_Day: 1,
+        Current_Round: 1,   // 保持轮次系统不变，UI第4页会读这个
+    },
+};
     let EbbData = null;
 
     // ------------------------------------------
