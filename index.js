@@ -1,17 +1,16 @@
-// Ebbinghaus Trainer · click-bulletproof version
+// Ebbinghaus Trainer · ultra-sticky panel + global listeners
 (function () {
   // 你喜欢哪种图标就换这个class，比如：
   // 'fa-graduation-cap' 🎓  'fa-book' 📕  'fa-brain' 🧠  'fa-book-open' 📖
   const ICON_CLASS = 'fa-graduation-cap';
 
-  // =============== 面板本体（我们后面把真实学习逻辑挂到这三颗按钮） ===============
-  function openPanel() {
-    // 如果已经有面板了，就直接显示并return
+  // 我们允许这些指令触发面板
+  const SLASH_TRIGGERS = ['/eb', '/ed', '/记忆表', '/memory'];
+
+  // ====== 1. 先把面板做好(隐藏)，后面只切 display，不重复创建 ======
+  function ensurePanelExists() {
     let panel = document.getElementById('eb-trainer-panel');
-    if (panel) {
-      panel.style.display = 'block';
-      return;
-    }
+    if (panel) return panel;
 
     panel = document.createElement('div');
     panel.id = 'eb-trainer-panel';
@@ -20,7 +19,7 @@
       position: 'fixed',
       right: '16px',
       bottom: '72px',
-      zIndex: 2147483647,
+      zIndex: 2147483647, // 顶在所有UI之上
       width: '340px',
       maxHeight: '60vh',
       overflow: 'auto',
@@ -32,6 +31,7 @@
       fontSize: '14px',
       lineHeight: '1.4',
       color: '#333',
+      display: 'none', // 默认隐藏
     });
 
     panel.innerHTML = `
@@ -44,11 +44,11 @@
       </div>
 
       <div style="font-size:13px;color:#666;line-height:1.5;margin-bottom:10px;">
-        ✅ 入口正常运行。<br/>
-        下面三颗按钮现在只是占位，后面会变成：<br/>
-        • 开始学习 → 把这次提交的单词放进当日 Level_0_New 并开始三轮提问（词→短语→句子，来源世界书）<br/>
-        • 复习 → 按艾宾浩斯计划抽查旧 List，错词降级<br/>
-        • 结束今天 → 打包 Level_5_Today、推进 Current_Day<br/>
+        ✅ 面板已激活。<br/>
+        下面三颗按钮是占位，下一步会接上真正的学习流程：<br/><br/>
+        •【开始学习】把这批新单词塞进当日 Level_0_New，并开始三轮提问（单词→短语→句子，全都用“世界书”的知识点做填空）<br/>
+        •【复习】按艾宾浩斯计划，对旧List抽查，错的降级回 Level_0_New 并从对应List里删掉<br/>
+        •【结束今天】把 Level_5_Today 打包成今日新List，清空列，并把 Current_Day +1<br/>
       </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -69,164 +69,189 @@
 
     document.body.appendChild(panel);
 
-    // 绑定按钮行为（先弹提示，后面我会把真逻辑塞进来）
-    document.getElementById('eb-panel-close').addEventListener('click', () => {
-        panel.style.display = 'none';
+    // 绑定面板内按钮（先弹告知，后面我们会把真逻辑塞这里）
+    const closeBtn = panel.querySelector('#eb-panel-close');
+    const startBtn = panel.querySelector('#eb-start');
+    const reviewBtn = panel.querySelector('#eb-review');
+    const endBtn = panel.querySelector('#eb-end');
+
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.style.display = 'none';
     });
 
-    document.getElementById('eb-start').addEventListener('click', (e) => {
-        e.stopPropagation();
-        alert('开始学习 StartStudy() 占位触发');
+    startBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      alert('开始学习 StartStudy() —— 占位触发');
     });
 
-    document.getElementById('eb-review').addEventListener('click', (e) => {
-        e.stopPropagation();
-        alert('复习 ReviewLists() 占位触发');
+    reviewBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      alert('复习 ReviewLists() —— 占位触发');
     });
 
-    document.getElementById('eb-end').addEventListener('click', (e) => {
-        e.stopPropagation();
-        alert('结束今天 EndDay() 占位触发');
+    endBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      alert('结束今天 EndDay() —— 占位触发');
     });
+
+    return panel;
   }
 
-  // =============== 顶部图标注入（学位帽） ===============
+  function openPanel() {
+    const panel = ensurePanelExists();
+    panel.style.display = 'block';
+  }
+
+  // ====== 2. 把学位帽图标塞到导航栏，保持 SillyTavern 风格 ======
   function injectToolbarIcon() {
-    // 找到顶栏里现有的按钮，准备把我们塞在它旁边
     const anchor = document.getElementById('extensions-settings-button')
                 || document.querySelector('#extensions-settings-button')
                 || document.querySelector('.extensions-settings-button');
-    if (!anchor || !anchor.parentElement) return;
+    if (!anchor || !anchor.parentElement) return null;
 
-    // 如果已经有我们自己的按钮了，就别重复加
-    if (document.getElementById('eb-toolbar-native')) return;
-
-    // 按 SillyTavern 原生按钮风格做一个 div.menu_button
-    const btn = document.createElement('div');
-    btn.id = 'eb-toolbar-native';
-    btn.className = 'menu_button';           // 关键：用 ST 自己的样式类
-    btn.title = '艾宾浩斯词汇导师';
-    btn.setAttribute('role', 'button');
-    btn.setAttribute('tabindex', '0');
-    btn.style.userSelect = 'none';
-
-    // 只放图标，不放文字（统一风格）
-    btn.innerHTML = `<i class="fa-solid ${ICON_CLASS}"></i>`;
-
-    // 把按钮插到 anchor 后面
-    anchor.parentElement.insertBefore(btn, anchor.nextSibling);
+    let btn = document.getElementById('eb-toolbar-native');
+    if (!btn) {
+      btn = document.createElement('div');
+      btn.id = 'eb-toolbar-native';
+      btn.className = 'menu_button'; // 跟官方按钮一样的class
+      btn.title = '艾宾浩斯词汇导师';
+      btn.setAttribute('role', 'button');
+      btn.setAttribute('tabindex', '0');
+      btn.style.userSelect = 'none';
+      btn.innerHTML = `<i class="fa-solid ${ICON_CLASS}"></i>`;
+      anchor.parentElement.insertBefore(btn, anchor.nextSibling);
+    }
+    return btn;
   }
 
-  // =============== 给图标绑定点击（多重绑定 + 兜底） ===============
-  function bindToolbarClick() {
+  // ====== 3. 给图标绑定点击（+全局兜底监听） ======
+  function bindToolbarClickWatchdog() {
     const fire = (ev) => {
-      if (!ev) ev = window.event;
-      try { ev.preventDefault(); } catch(_) {}
-      try { ev.stopPropagation(); } catch(_) {}
-      try { ev.stopImmediatePropagation(); } catch(_) {}
+      if (ev) {
+        ev.preventDefault?.();
+        ev.stopPropagation?.();
+        ev.stopImmediatePropagation?.();
+      }
       openPanel();
       return false;
     };
 
-    const bindNow = () => {
-      const icon = document.getElementById('eb-toolbar-native');
-      if (!icon) return false;
+    // 每500ms检查一次图标是否在，是否有监听
+    let tries = 0;
+    const t = setInterval(() => {
+      const icon = injectToolbarIcon(); // 没有就再塞一个
+      if (!icon) {
+        tries++;
+        if (tries > 40) clearInterval(t); // 20秒后也不再尝试
+        return;
+      }
 
-      // 主绑定：click / touchend / keydown(回车 空格)
+      // 我们一直给它重新挂监听，不怕它被 SillyTavern 重绘掉
       icon.onclick = fire;
       icon.ontouchend = fire;
+      icon.onpointerup = fire;
       icon.onkeydown = (e) => {
         if (e.key === 'Enter' || e.key === ' ') fire(e);
       };
 
-      // 兜底：全局捕获。即使顶栏父容器在手机上吃掉了点击，这里还能拦截到“是谁被点了”
+      // 兜底：全局捕获，只要点到了这个图标(或里面的小帽子<i>标签)，我就开面板
       document.addEventListener('click', (e) => {
-        if (e.target && e.target.closest && e.target.closest('#eb-toolbar-native')) {
+        if (!e.target) return;
+        if (e.target.closest && e.target.closest('#eb-toolbar-native')) {
           fire(e);
         }
       }, true);
 
       document.addEventListener('touchend', (e) => {
-        if (e.target && e.target.closest && e.target.closest('#eb-toolbar-native')) {
+        if (!e.target) return;
+        if (e.target.closest && e.target.closest('#eb-toolbar-native')) {
           fire(e);
         }
       }, true);
 
-      return true;
-    };
-
-    // 菜单会被 SillyTavern 重新渲染，所以我们用一个小轮询，反复确保监听存在
-    let tries = 0;
-    const t = setInterval(() => {
-      injectToolbarIcon();    // 图标不在就再塞一次
-      if (bindNow()) {
-        // 只要成功绑上了，就可以停止轮询
-        clearInterval(t);
-      }
-      if (++tries > 20) {
-        clearInterval(t);
-      }
+      // 一旦我们成功挂上了事件，就不需要一直轮询更多逻辑，
+      // 但我们保留interval继续运行一会儿是为了防止 ST 重新渲染头部吃掉监听。
+      tries++;
+      if (tries > 40) clearInterval(t); // ~20秒够稳定了
     }, 500);
   }
 
-  // =============== 聊天输入框斜杠命令：/记忆表 /eb /memory ===============
-  function bindSlashCommand() {
-    const attempt = () => {
-      const input = document.getElementById('send_textarea') || document.querySelector('textarea');
-      const sendBtn = document.querySelector('#send_button, #send_message_button, #send_now, .send_button');
+  // ====== 4. 监听聊天输入框，实现 /eb /ed /记忆表 /memory 开面板 ======
+  function bindSlashIntercept() {
+    // 这个逻辑并不依赖点“发送”，而是拦在回车之前
+    const isTriggerText = (text) => {
+      if (!text) return false;
+      const v = text.trim();
+      return SLASH_TRIGGERS.includes(v);
+    };
 
-      if (!input) return false;
+    // 我们在 document 层面捕获 keydown，这样优先级比 SillyTavern 自己的 slash parser 还高
+    document.addEventListener('keydown', (e) => {
+      // 只关心回车
+      if (e.key !== 'Enter' || e.shiftKey) return;
 
-      const maybeOpen = () => {
-        const v = (input.value || '').trim();
-        if (v === '/记忆表' || v === '/eb' || v === '/memory') {
-          input.value = '';
+      const active = document.activeElement;
+      if (!active) return;
+      if (active.tagName !== 'TEXTAREA' && active.tagName !== 'INPUT') return;
+
+      const curVal = active.value || '';
+      if (!isTriggerText(curVal)) return;
+
+      // 如果输入的是 /eb /ed /记忆表 /memory
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation?.();
+
+      // 清空输入框，避免真的发出去
+      active.value = '';
+
+      // 打开面板
+      openPanel();
+    }, true);
+
+    // 再兜底一层：点“发送按钮”也劫持
+    const tryBindSendButton = () => {
+      const sendBtn = document.querySelector('#send_button, #send_message_button, #send_now, .send_button, button.send_button');
+      const inputBox = document.getElementById('send_textarea') || document.querySelector('textarea');
+
+      if (!sendBtn || !inputBox) return false;
+
+      sendBtn.addEventListener('click', (e) => {
+        const curVal = (inputBox.value || '').trim();
+        if (isTriggerText(curVal)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation?.();
+          inputBox.value = '';
           openPanel();
-          return true;
-        }
-        return false;
-      };
-
-      // 回车发送的时候拦一下
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          if (maybeOpen()) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation?.();
-          }
         }
       }, true);
 
-      // 小纸飞机“发送”按钮也拦一下
-      if (sendBtn) {
-        sendBtn.addEventListener('click', () => { maybeOpen(); }, true);
-      }
-
       return true;
     };
 
+    // 发送键可能是动态渲染的，所以轮询几次尝试挂监听
     let tries = 0;
     const t = setInterval(() => {
-      if (attempt() || ++tries > 10) clearInterval(t);
-    }, 500);
+      if (tryBindSendButton() || ++tries > 10) clearInterval(t);
+    }, 800);
   }
 
-  // =============== “记忆表”出现在每条 AI 消息卡片的操作区（额外后备入口） ===============
+  // ====== 5. “记忆表”按钮进到每条 AI 消息卡片的功能区（作为额外入口） ======
   function injectPerMessageButton() {
-    // 1. 点击这个按钮就开面板
+    // 监听这个按钮的点击
     document.addEventListener('click', (e) => {
       const hit = e.target && e.target.closest && e.target.closest('.eb-open-panel');
-      if (hit) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation?.();
-        openPanel();
-      }
+      if (!hit) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation?.();
+      openPanel();
     }, true);
 
-    // 2. 反复往 .extraMesButtons 里塞“记忆表”小按钮
-    const addBtnToAllMessages = () => {
+    // 轮询把按钮塞到 .extraMesButtons 里
+    function addBtnToAllMessages() {
       document.querySelectorAll('.extraMesButtons').forEach(box => {
         if (box.querySelector('.eb-open-panel')) return;
         const div = document.createElement('div');
@@ -236,7 +261,7 @@
         div.style.cursor = 'pointer';
         box.appendChild(div);
       });
-    };
+    }
 
     let tries = 0;
     const t = setInterval(() => {
@@ -245,18 +270,21 @@
     }, 800);
   }
 
-  // =============== 启动顺序 ===============
+  // ====== 6. 初始化顺序 ======
   function init() {
-    // 1. 顶栏图标 + 点击绑定（含轮询确保不会丢监听）
-    bindToolbarClick();
+    // 把面板先准备好（隐藏）
+    ensurePanelExists();
 
-    // 2. slash 命令：发 /eb /记忆表 也能打开
-    bindSlashCommand();
+    // 把导航栏学位帽塞进去并且疯狂绑定监听
+    bindToolbarClickWatchdog();
 
-    // 3. 每条AI消息里的“记忆表”按钮
+    // 给输入框加 /eb /记忆表 触发器
+    bindSlashIntercept();
+
+    // 给每条消息的操作栏加“记忆表”按钮
     injectPerMessageButton();
 
-    console.log('[EbbinghausTrainer] fully initialized');
+    console.log('[EbbinghausTrainer] super-sticky init complete.');
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
