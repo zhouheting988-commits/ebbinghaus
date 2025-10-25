@@ -564,61 +564,66 @@ const defaultData = {
                     flex-wrap:nowrap;
                     gap:12px;
                     overflow-x:auto;
-                    /* 横向可以拖动，从左表拖到右表 */
-                    -webkit-overflow-scrolling:touch;
-                ">
+function buildTabScheduleHTML() {
+    const sched = EbbData.Ebbinghaus_Schedule || {};
+    const days = Object.keys(sched).map(n => parseInt(n, 10)).sort((a,b)=>a-b);
 
-                    <!-- 左半：Day / NewList / Review1 -->
-                    <table style="
-                        border-collapse:collapse;
-                        min-width:220px;
-                        background:rgba(0,0,0,0.15);
-                        border:1px solid rgba(255,255,255,0.12);
-                        border-radius:6px;
-                        overflow:hidden;
-                        flex-shrink:0;
-                    ">
-                        <thead style="background:rgba(255,255,255,0.07);">
-                            <tr>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Day</th>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">NewList</th>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review1</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${leftRows}
-                        </tbody>
-                    </table>
-
-                    <!-- 右半：Review2~Review5 -->
-                    <table style="
-                        border-collapse:collapse;
-                        min-width:260px;
-                        background:rgba(0,0,0,0.15);
-                        border:1px solid rgba(255,255,255,0.12);
-                        border-radius:6px;
-                        overflow:hidden;
-                        flex-shrink:0;
-                    ">
-                        <thead style="background:rgba(255,255,255,0.07);">
-                            <tr>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review2</th>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review3</th>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review4</th>
-                                <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review5</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rightRows}
-                        </tbody>
-                    </table>
-
-                </div>
-            </div>
-
-        </div>
-    `;
+    let leftRows = '';
+    for (const d of days) {
+        const e = sched[String(d)] || { NewList:'', Review:[] };
+        leftRows += `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${d}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${e.NewList || '—'}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${e.Review?.[0] || '…'}</td>
+        </tr>`;
     }
+
+    let rightRows = '';
+    for (const d of days) {
+        const r = (sched[String(d)]?.Review) || [];
+        rightRows += `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[1] || '…'}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[2] || '…'}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[3] || '…'}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${r[4] || '…'}</td>
+        </tr>`;
+    }
+
+    return `
+    <div style="color:#ddd;font-size:14px;line-height:1.4;margin-bottom:12px;">
+        每天要学的新词(NewList) + 要复习的旧词组(Review列)。
+    </div>
+    <div style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(0,0,0,0.2);padding:8px 10px;">
+        <div style="max-height:240px;overflow-y:auto;">
+            <div style="display:flex;gap:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table style="border-collapse:collapse;min-width:220px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <thead style="background:rgba(255,255,255,0.07);">
+                        <tr>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Day</th>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">NewList</th>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review1</th>
+                        </tr>
+                    </thead>
+                    <tbody>${leftRows}</tbody>
+                </table>
+
+                <table style="border-collapse:collapse;min-width:260px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;flex-shrink:0;">
+                    <thead style="background:rgba(255,255,255,0.07);">
+                        <tr>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review2</th>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review3</th>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review4</th>
+                            <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Review5</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rightRows}</tbody>
+                </table>
+            </div>
+        </div>
+    </div>`;
+}
 
     // ======================================================
     // 分页4：学习控制 (Study_Control + 轮次按钮)
