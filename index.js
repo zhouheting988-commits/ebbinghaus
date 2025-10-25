@@ -1,33 +1,23 @@
 // ======================================================
 //  Ebbinghaus Trainer - 词汇记忆四表系统
-//  版本: 0.6.0
+//  版本: 0.6.1 (UI回到你喜欢的布局样式)
 //  作者: Dauvier & ChatGPT
 //
-//  本版要点：
-//   1. 学士帽按钮 🎓 保留在顶部工具栏，点击打开面板
-//   2. 面板里展示：
-//      - 当前是第几天（Current_Day）
-//      - 当前轮次 Round（1=单词, 2=短语, 3=句子）
-//      - 今日复习安排（用你的艾宾浩斯表 / 之后还会加Round2, Round3的一周冲刺表）
-//      - 学习轮次切换区（下一轮↗、回到第1轮...）
-//      - 每日固定流程（包含降级、打包List、推进天数）
-//   3. 数据四大表：
-//      - Vocabulary_Mastery
-//      - Word_Lists
-//      - Ebbinghaus_Schedule (Round1专用，已灌入你给的Day1-25表)
-//      - Study_Control (Current_Day + Current_Round)
+// 变动总结（相对0.6.0）：
+//  - 学士帽按钮🎓保留在顶栏，别丢入口
+//  - 弹出的面板恢复“5.0版”布局：
+//      • 顶部：左边🎓+标题，右边[关闭]
+//      • 第一块灰卡片 = 今天是第几天 + 当前轮次 + 这一轮干嘛 + 各个Level数量
+//      • 第二块蓝卡片 = 今日复习安排（用你给的25天表）
+//      • 第三块灰卡片 = 学习轮次切换(下一轮↗ / 回到第1轮 / 第2轮(短语) / 第3轮(句子))
+//      • 第四块灰卡片 = 每日固定流程（开始学习 / 复习 / 结束今天）
 //
-//  用法日常循环：
-//     - 打开面板看“今日复习安排”
-//     - 叫“教官”把 NewList 的词塞进今天的 Level_0_New 并考你
-//     - 叫“教官”逐个复习 Review 里的旧List
-//     - 每个记不住/答错的词 => 调用 downgradeWordToToday("那个词")
-//     - 一天结束 => finalizeTodayAndAdvance()
-//       （把今天的 Level_5_Mastered_Today 打包成 List{Day}，然后 Current_Day+1）
+//  数据保持0.6.0：
+//    - Ebbinghaus_Schedule: 已写入你Day1~Day25固定表
+//    - Round2_Schedule_7Day / Round3_Schedule_7Day: 预留一周冲刺位
+//    - Study_Control: Current_Day(第几天) + Current_Round(第几轮:1词/2短语/3句子)
+//    - finalizeTodayAndAdvance(): 打包今天掌握词成 List{Day}，推进天数+1
 //
-//  Round 2 / Round 3：目标是同一批词一周扫完（短语 / 句子+知识点）。
-//     - 我已经给它们留了 Round2_Schedule_7Day / Round3_Schedule_7Day 占位，
-//       等你给我那两张7天分配表，我再写死进去。
 // ======================================================
 
 (function () {
@@ -35,7 +25,7 @@
     const STORAGE_KEY = 'EbbinghausTrainerData_v1';
 
     // ------------------------------------------
-    // 数据默认骨架
+    // 默认数据骨架
     // ------------------------------------------
     const defaultData = {
         Vocabulary_Mastery: {
@@ -50,15 +40,12 @@
         },
 
         Word_Lists: {
-            // "List1": ["wordA", "wordB", ...]  // finalizeTodayAndAdvance() 时会写进去
+            // "List1": ["wordA", "wordB", ...]
         },
 
-        // Round1（单词阶段）艾宾浩斯复习表
-        // 你发给我的 Day1~Day25 固定表，我已经按天塞进来了：
-        // NewList: 当天要新背/今天主记忆的列表（有些天是 null，表示那天不背新词，只复盘）
-        // Review: 旧List要复习的数组
-        //
-        // 注意：Day11以后其实没有新的List11、12…，而是持续复盘 List1-10。
+        // Round1（单词阶段）25天艾宾浩斯固定计划
+        // NewList: 当天主背的新List
+        // Review: 旧List复习清单
         Ebbinghaus_Schedule: {
             "1":  { NewList: "List1",  Review: [] },
             "2":  { NewList: "List2",  Review: ["List1"] },
@@ -71,7 +58,6 @@
             "9":  { NewList: "List9",  Review: ["List2","List5","List7","List8"] },
             "10": { NewList: "List10", Review: ["List3","List6","List8","List9"] },
 
-            // Day11 开始不再有全新的List11、12...，而是长尾复习
             "11": { NewList: null, Review: ["List4","List7","List9","List10"] },
             "12": { NewList: null, Review: ["List5","List8","List10"] },
             "13": { NewList: null, Review: ["List6","List9"] },
@@ -89,11 +75,9 @@
             "25": { NewList: null, Review: ["List10"] },
         },
 
-        // Round2 / Round3 的一周冲刺表预留（短语/句子）
-        // 等你给我7天分配（每天要扫哪些List）我就填进来
+        // Round2/3 一周冲刺预留：等你给我7天分配表我就灌进去
         Round2_Schedule_7Day: {
             // "1": { Focus: ["List1","List2","List3"] },
-            // "2": { Focus: [...] },
             // ...
         },
         Round3_Schedule_7Day: {
@@ -102,8 +86,8 @@
         },
 
         Study_Control: {
-            Current_Day: 1,     // 第几天（不是现实日期，是进度天）
-            Current_Round: 1,   // 1=单词, 2=短语, 3=句子
+            Current_Day: 1,    // 第几天（学习进度Day，不是现实日历）
+            Current_Round: 1,  // 1=单词, 2=短语, 3=句子
         },
     };
 
@@ -119,7 +103,7 @@
     }
 
     // ------------------------------------------
-    // 存取本地存档
+    // 读/写 本地存档
     // ------------------------------------------
     function loadData() {
         try {
@@ -132,7 +116,7 @@
                 EbbData = JSON.parse(raw);
                 console.log(`[${EXT_NAME}] Data loaded:`, EbbData);
 
-                // 向后兼容：如果老存档里还没有新字段，补上
+                // 补齐新字段（兼容老存档）
                 if (EbbData.Round2_Schedule_7Day == null) {
                     EbbData.Round2_Schedule_7Day = deepClone(defaultData.Round2_Schedule_7Day);
                 }
@@ -163,7 +147,7 @@
     }
 
     // ------------------------------------------
-    // Round 管理
+    // Round 操作
     // ------------------------------------------
     function getCurrentRound() {
         return EbbData?.Study_Control?.Current_Round || 1;
@@ -182,6 +166,7 @@
     }
 
     function getRoundName(r) {
+        // 用和你截图一致的样式：Round 1 / 3
         switch (r) {
             case 1: return 'Round 1 / 3';
             case 2: return 'Round 2 / 3';
@@ -192,10 +177,10 @@
 
     function getRoundDesc(r) {
         if (r === 1) {
-            return '第一轮：单词阶段（只给英文词+中文提示）';
+            return '第一轮：单词阶段（只给英文单词+中文提示）';
         }
         if (r === 2) {
-            return '第二轮：短语阶段（近义/固定搭配/常用短语）';
+            return '第二轮：短语阶段（固定搭配/近义表达）';
         }
         if (r === 3) {
             return '第三轮：句子阶段（整句+知识点语境）';
@@ -204,7 +189,7 @@
     }
 
     // ------------------------------------------
-    // 确保今天这天的桶存在
+    // 确保“今天的桶”存在
     // ------------------------------------------
     function ensureTodayBucket() {
         const dayNum = EbbData.Study_Control.Current_Day;
@@ -225,7 +210,7 @@
 
     // ------------------------------------------
     // 操作1：把一批新词塞进今天的 Level_0_New
-    // （你让“教官”做这件事。Round1时一般用当天的NewList）
+    // （让“教官”去做这步）
     // ------------------------------------------
     function addNewWordsToToday(wordListArray) {
         const dayKey = ensureTodayBucket();
@@ -242,9 +227,9 @@
     }
 
     // ------------------------------------------
-    // 操作2：降级某个错词
-    // 把它从今天所有level踢掉，再塞回 Level_0_New
-    // 还要从所有ListX里移除（它不算毕业词了）
+    // 操作2：降级错词
+    // 把它从所有level踢掉 -> 放回今天 Level_0_New
+    // 再把它从毕业List里移除
     // ------------------------------------------
     function downgradeWordToToday(word) {
         const dayKey = ensureTodayBucket();
@@ -254,6 +239,7 @@
             "Level_0_New","Level_1","Level_2","Level_3","Level_4","Level_5_Mastered_Today"
         ];
 
+        // 从当日所有level剔除
         for (const lv of levels) {
             const idx = bucket[lv].indexOf(word);
             if (idx !== -1) {
@@ -261,11 +247,12 @@
             }
         }
 
+        // 放回 Level_0_New
         if (!bucket.Level_0_New.includes(word)) {
             bucket.Level_0_New.push(word);
         }
 
-        // 把它从所有毕业List里移除
+        // 从所有毕业List中移除
         for (const listName of Object.keys(EbbData.Word_Lists)) {
             const arr = EbbData.Word_Lists[listName];
             const idx2 = arr.indexOf(word);
@@ -278,11 +265,10 @@
     }
 
     // ------------------------------------------
-    // 操作3：结束今天 / 打包毕业词 / 推进天数
-    // 相当于“结束今天”
-    //   1) 把今天 Level_5_Mastered_Today 打成 List{Current_Day}
-    //   2) 清空 Level_5_Mastered_Today
-    //   3) Current_Day +1
+    // 操作3：结束今天 → 打包毕业词 + 推进Day
+    // 1) 把今天 Level_5_Mastered_Today 打成 List{Day}
+    // 2) 清空 L5_Today
+    // 3) Current_Day +1
     // ------------------------------------------
     function finalizeTodayAndAdvance() {
         const todayNum = EbbData.Study_Control.Current_Day;
@@ -296,26 +282,26 @@
             EbbData.Word_Lists[listName] = grads;
         }
 
-        // 清空今天的 L5_Today
+        // 清空今天已掌握
         bucket.Level_5_Mastered_Today = [];
 
-        // 推进到下一天
+        // 推进Day
         EbbData.Study_Control.Current_Day = todayNum + 1;
 
         saveData();
     }
 
     // ------------------------------------------
-    // 根据当前轮次 + 当前Day，给出“今日复习安排”
-    // Round1: 用 Ebbinghaus_Schedule[Current_Day]
-    // Round2/Round3: 之后会切到7天冲刺表
+    // 读今日复习安排（根据当前Round）
+    // Round1 => 25天表
+    // Round2/Round3 => 7天冲刺表（预留，等你给）
     // ------------------------------------------
     function getScheduleForToday() {
         const roundNow = getCurrentRound();
         const dayNum = EbbData.Study_Control.Current_Day;
 
         if (roundNow === 1) {
-            // Round1：单词阶段 => 用你的25天艾宾浩斯表
+            // 单词阶段：用25天艾宾浩斯表
             const sched = EbbData.Ebbinghaus_Schedule[String(dayNum)];
             if (!sched) {
                 return {
@@ -330,32 +316,24 @@
         }
 
         if (roundNow === 2) {
-            // Round2：短语阶段 => 一周扫完全表
-            // 现在还没有你的最终分配方案，先放占位
-            // 我直接把 Focus 数组拿出来当“要复习的List”
-            const d = ((dayNum-1) % 7) + 1; // 让它循环1~7
+            // 短语阶段：一周冲刺 (预留)
+            const d = ((dayNum-1) % 7) + 1;
             const sched2 = EbbData.Round2_Schedule_7Day[String(d)];
             if (!sched2) {
-                return {
-                    NewList: null,
-                    Review: [],
-                };
+                return { NewList: null, Review: [] };
             }
             return {
-                NewList: null,   // 二轮不强调“新List”，全是复盘
+                NewList: null,
                 Review: Array.isArray(sched2.Focus) ? sched2.Focus : [],
             };
         }
 
         if (roundNow === 3) {
-            // Round3：句子+知识点阶段 => 同样一周扫完
+            // 句子阶段：一周冲刺 (预留)
             const d = ((dayNum-1) % 7) + 1;
             const sched3 = EbbData.Round3_Schedule_7Day[String(d)];
             if (!sched3) {
-                return {
-                    NewList: null,
-                    Review: [],
-                };
+                return { NewList: null, Review: [] };
             }
             return {
                 NewList: null,
@@ -363,6 +341,7 @@
             };
         }
 
+        // fallback
         return {
             NewList: null,
             Review: [],
@@ -370,14 +349,13 @@
     }
 
     // ------------------------------------------
-    // 读取今日摘要，提供给UI
+    // 今日快照（给UI用）
     // ------------------------------------------
     function getTodaySnapshot() {
         const dayNum = EbbData.Study_Control.Current_Day;
         const roundNow = getCurrentRound();
         const dayKey = ensureTodayBucket();
         const bucket = EbbData.Vocabulary_Mastery[dayKey];
-
         const sched = getScheduleForToday();
 
         return {
@@ -396,7 +374,7 @@
     }
 
     // ------------------------------------------
-    // 暴露给控制台调试
+    // 给控制台调试
     // ------------------------------------------
     window.EbbinghausDataAPI = {
         loadData,
@@ -415,7 +393,7 @@
     };
 
     // ======================================================
-    // UI：学士帽按钮 + 弹出面板
+    // UI：学士帽按钮 + 弹出面板 (回归你喜欢的布局)
     // ======================================================
 
     let overlayEl = null;
@@ -423,132 +401,122 @@
     let topButtonEl = null;
     let uiReady = false;
 
-    // 根据当前数据生成HTML
+    // --- 生成面板HTML（5.0式布局） ---
     function buildOverlayHTML() {
         if (!EbbData) {
             loadData();
         }
         const snap = getTodaySnapshot();
 
-        // 拼接今日复习安排文字
-        let scheduleHTML = '';
-        const newStr = snap.schedule.NewList
-            ? `<div>新记忆 List：<b style="color:#fff;">${snap.schedule.NewList}</b></div>`
-            : '';
+        const roundName = getRoundName(snap.currentRound);
+        const roundDesc = getRoundDesc(snap.currentRound);
+
+        // 今日复习安排
         const reviewStr = (snap.schedule.Review && snap.schedule.Review.length > 0)
             ? snap.schedule.Review.join(', ')
             : '（无）';
 
-        scheduleHTML = `
-            ${newStr}
-            <div>需要复习的旧List：<b style="color:#fff;">${reviewStr}</b></div>
-        `;
+        const newListLine = snap.schedule.NewList
+            ? `<div>新记忆 List：<b style="color:#fff;">${snap.schedule.NewList}</b></div>`
+            : `<div>新记忆 List：<span style="color:#888;">（无）</span></div>`;
 
-        const roundName = getRoundName(snap.currentRound);
-        const roundDesc = getRoundDesc(snap.currentRound);
-
-        // 面板内容
-        return `
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:flex-start;
-                margin-bottom:16px;
-                flex-wrap:wrap;
-            ">
-                <div style="
-                    font-size:16px;
-                    font-weight:bold;
-                    display:flex;
-                    align-items:flex-start;
-                    gap:8px;
-                    color:#fff;
-                    line-height:1.4;
-                ">
-                    <span style="font-size:1.2em;">🎓</span>
-                    <div>
-                        <div>艾宾浩斯词汇导师</div>
-                        <div style="font-size:12px;font-weight:normal;color:#bbb;">
-                            第 ${snap.currentDay} 天
-                            &nbsp;&nbsp;|&nbsp;&nbsp;
-                            ${roundName}
-                        </div>
-                        <div style="font-size:11px;color:#888;margin-top:2px;">
-                            ${roundDesc}
-                        </div>
-                    </div>
-                </div>
-
-                <button id="ebb_close_btn" style="
-                    background:rgba(255,255,255,0.08);
-                    color:#fff;
-                    border:1px solid rgba(255,255,255,0.3);
-                    border-radius:8px;
-                    font-size:12px;
-                    line-height:1;
-                    padding:4px 8px;
-                    cursor:pointer;
-                ">关闭</button>
-            </div>
-
-            <!-- 今日Levels概况 -->
+        // 这一块是最上面的大灰卡片：第几天 / Round几 / 当前轮次描述 / 各个Level数量
+        const topSummaryBoxHTML = `
             <div style="
                 background:rgba(255,255,255,0.05);
                 border:1px solid rgba(255,255,255,0.12);
                 border-radius:8px;
-                padding:10px 12px;
+                padding:12px 12px 10px 12px;
                 margin-bottom:16px;
-                font-size:13px;
                 color:#ccc;
                 line-height:1.5;
+                font-size:14px;
             ">
-                <div style="font-weight:bold;color:#fff;margin-bottom:6px;">
-                    今天掌握进度
+
+                <div style="font-weight:bold;color:#fff;margin-bottom:6px;line-height:1.4;">
+                    <span style="
+                        display:inline-block;
+                        background:#c33;
+                        color:#fff;
+                        font-size:11px;
+                        line-height:1;
+                        padding:2px 4px;
+                        border-radius:4px;
+                        font-weight:bold;
+                        margin-right:6px;
+                    ">
+                        Day ${snap.currentDay}
+                    </span>
+                    第 ${snap.currentDay} 天 ｜ ${roundName}
                 </div>
 
-                <div>Level_0_New：${snap.todayLevels.L0} 个</div>
-                <div>Level_1：${snap.todayLevels.L1} 个</div>
-                <div>Level_2：${snap.todayLevels.L2} 个</div>
-                <div>Level_3：${snap.todayLevels.L3} 个</div>
-                <div>Level_4：${snap.todayLevels.L4} 个</div>
-                <div>Level_5_Today（待毕业）：${snap.todayLevels.L5_Today} 个</div>
-            </div>
+                <div style="font-size:12px;color:#bbb;line-height:1.4;margin-bottom:10px;">
+                    ${roundDesc}
+                </div>
 
-            <!-- 今日复习安排 -->
+                <div style="
+                    background:rgba(0,0,0,0.2);
+                    border:1px solid rgba(255,255,255,0.1);
+                    border-radius:6px;
+                    padding:10px 12px;
+                    font-size:14px;
+                    color:#e0e0e0;
+                    line-height:1.6;
+                ">
+                    <div style="font-weight:bold;color:#fff;margin-bottom:6px;">
+                        今天掌握进度
+                    </div>
+                    <div>Level_0_New：${snap.todayLevels.L0} 个</div>
+                    <div>Level_1：${snap.todayLevels.L1} 个</div>
+                    <div>Level_2：${snap.todayLevels.L2} 个</div>
+                    <div>Level_3：${snap.todayLevels.L3} 个</div>
+                    <div>Level_4：${snap.todayLevels.L4} 个</div>
+                    <div>Level_5_Today（待毕业）：${snap.todayLevels.L5_Today} 个</div>
+                </div>
+            </div>
+        `;
+
+        // 今日复习安排（蓝边卡片）
+        const scheduleBoxHTML = `
             <div style="
                 background:rgba(0,0,0,0.4);
                 border:1px solid rgba(0,150,255,0.4);
                 border-radius:10px;
-                padding:10px 12px;
+                padding:12px;
                 margin-bottom:16px;
                 color:#bfe4ff;
                 font-size:14px;
-                line-height:1.4;
+                line-height:1.5;
             ">
-                <div style="font-weight:bold;color:#fff;margin-bottom:4px;">
+                <div style="font-weight:bold;color:#fff;margin-bottom:8px;font-size:16px;">
                     今日复习安排
                 </div>
-                <div style="font-size:13px;color:#bfe4ff;">
-                    ${scheduleHTML}
+                <div style="font-size:14px;color:#bfe4ff;">
+                    ${newListLine}
+                    <div>需要复习的旧List：
+                        <b style="color:#fff;">${reviewStr}</b>
+                    </div>
                 </div>
             </div>
+        `;
 
-            <!-- 学习轮次控制 (词→短语→句子) -->
+        // 学习轮次控制（词→短语→句子）
+        const roundControlBoxHTML = `
             <div style="
                 background:rgba(255,255,255,0.03);
                 border:1px solid rgba(255,255,255,0.2);
                 border-radius:10px;
-                padding:10px 12px;
+                padding:12px;
                 margin-bottom:16px;
                 font-size:13px;
                 line-height:1.5;
                 color:#ddd;
             ">
-                <div style="font-weight:bold;color:#fff;margin-bottom:8px;">
+                <div style="font-weight:bold;color:#fff;margin-bottom:8px;font-size:16px;">
                     学习轮次（词→短语→句子）
                 </div>
 
-                <div style="color:#ccc;margin-bottom:10px;">
+                <div style="color:#ccc;margin-bottom:10px;font-size:14px;">
                     你可以手动切换轮次，不同轮次让“教官”用不同提问方式。
                 </div>
 
@@ -592,60 +560,110 @@
                 </div>
 
                 <div style="font-size:12px;color:#888;line-height:1.4;">
-                    这只是把当前轮次写进 Study_Control.Current_Round。<br/>
-                    真正问问题时，“教官”要先读这个值，决定是考“生词本体 / 短语 / 整句+知识点”。
+                    这只是把当前轮次写进
+                    Study_Control.Current_Round。<br/>
+                    真正问问题时，“教官”要先读这个值，决定是考
+                    “生词本体 / 短语 / 整句+知识点”。
                 </div>
             </div>
+        `;
 
-            <!-- 每日固定流程 -->
+        // 每日固定流程卡片
+        const dailyFlowBoxHTML = `
             <div style="
                 background:rgba(255,255,255,0.03);
                 border:1px solid rgba(255,255,255,0.2);
                 border-radius:10px;
-                padding:10px 12px;
+                padding:12px;
                 font-size:13px;
                 line-height:1.5;
                 color:#ddd;
                 margin-bottom:8px;
             ">
-                <div style="font-weight:bold;color:#fff;margin-bottom:6px;">
+                <div style="font-weight:bold;color:#fff;margin-bottom:8px;font-size:16px;">
                     每日固定流程（用你的快速回复去指挥“教官”）
                 </div>
 
-                <div style="color:#ccc;margin-bottom:8px;">
-                    1. <b>开始学习</b>：把今天这批新词交给教官。
+                <div style="color:#ccc;margin-bottom:10px;font-size:14px;">
+                    <b>1. 开始学习</b>：把今天这批新词交给教官。
                     教官把这些词写入今天的
                     <code style="color:#fff;">Level_0_New</code>。
                     然后按当前轮次提问你：
-                    <br/>Round1 = 单词释义
-                    <br/>Round2 = 短语搭配
-                    <br/>Round3 = 整句+知识点
+                    Round1=单词释义 / Round2=短语搭配 / Round3=整句+知识点。
                 </div>
 
-                <div style="color:#ccc;margin-bottom:8px;">
-                    2. <b>复习</b>：按“今日复习安排”里的List逐个抽查旧词。
+                <div style="color:#ccc;margin-bottom:10px;font-size:14px;">
+                    <b>2. 复习</b>：按“今日复习安排”里的List逐个抽查旧词。<br/>
                     你答错 = 严重警报。
                     教官必须执行
                     <code style="color:#fff;">downgradeWordToToday(该词)</code>：
-                    把这个词从毕业List里删掉，并重塞回今天的
-                    <code style="color:#fff;">Level_0_New</code> 重新记。
+                    把这个词从毕业List里删掉，
+                    并重塞回今天的
+                    <code style="color:#fff;">Level_0_New</code>
+                    重新记。
                 </div>
 
-                <div style="color:#ccc;">
-                    3. <b>结束今天</b>：
-                    把今天 <code style="color:#fff;">Level_5_Mastered_Today</code>
-                    打包成 <code style="color:#fff;">List{今天Day号}</code>
-                    存进 <code style="color:#fff;">Word_Lists</code>；
+                <div style="color:#ccc;font-size:14px;">
+                    <b>3. 结束今天</b>：
+                    把今天
+                    <code style="color:#fff;">Level_5_Mastered_Today</code>
+                    打包成
+                    <code style="color:#fff;">List{今天Day号}</code>
+                    存进
+                    <code style="color:#fff;">Word_Lists</code>；<br/>
                     然后让教官执行
-                    <code style="color:#fff;">finalizeTodayAndAdvance()</code>
-                    ，把 <code style="color:#fff;">Current_Day</code> +1，准备下一天。
+                    <code style="color:#fff;">finalizeTodayAndAdvance()</code>，
+                    把
+                    <code style="color:#fff;">Current_Day</code> +1，准备明天。
                 </div>
             </div>
         `;
+
+        // 整个面板：顶部header(🎓 + 关闭按钮) + 四个卡片
+        return `
+            <!-- Header行：左=icon+标题 右=[关闭] -->
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                margin-bottom:16px;
+                flex-wrap:nowrap;
+            ">
+                <div style="
+                    display:flex;
+                    align-items:flex-start;
+                    gap:8px;
+                    color:#fff;
+                    line-height:1.3;
+                    font-size:16px;
+                    font-weight:bold;
+                ">
+                    <span style="font-size:1.2em;line-height:1;">🎓</span>
+                    <div style="color:#fff;">艾宾浩斯词汇导师</div>
+                </div>
+
+                <button id="ebb_close_btn" style="
+                    background:rgba(255,255,255,0.08);
+                    color:#fff;
+                    border:1px solid rgba(255,255,255,0.3);
+                    border-radius:8px;
+                    font-size:12px;
+                    line-height:1;
+                    padding:4px 8px;
+                    cursor:pointer;
+                ">关闭</button>
+            </div>
+
+            ${topSummaryBoxHTML}
+            ${scheduleBoxHTML}
+            ${roundControlBoxHTML}
+            ${dailyFlowBoxHTML}
+        `;
     }
 
+    // --- 把按钮事件绑上去 ---
     function attachOverlayEvents() {
-        // 关闭按钮
+        // 关闭
         const closeBtn = overlayCardEl.querySelector('#ebb_close_btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', (ev) => {
@@ -700,7 +718,7 @@
         }
     }
 
-    // 创建或显示面板
+    // --- 显示/隐藏/重渲染 overlay ---
     function showOverlay() {
         if (!overlayEl) {
             overlayEl = document.createElement('div');
@@ -718,14 +736,14 @@
             overlayEl.style.padding = '20px';
             overlayEl.style.boxSizing = 'border-box';
 
-            // 点击遮罩空白区域关闭
+            // 点击灰遮罩空白处 => 关闭
             overlayEl.addEventListener('click', (ev) => {
                 if (ev.target === overlayEl) {
                     hideOverlay();
                 }
             }, true);
 
-            // 卡片
+            // 黑色卡片
             overlayCardEl = document.createElement('div');
             overlayCardEl.id = 'ebb_overlay_card';
             overlayCardEl.style.background = 'rgba(20,20,20,0.95)';
@@ -768,15 +786,14 @@
     }
 
     // ------------------------------------------
-    // 把顶部学士帽按钮插进工具栏
-    // （保持和之前一样，别再丢入口）
+    // 把顶部🎓按钮插进工具栏（保持入口不丢）
     // ------------------------------------------
     function insertTopButtonIfMissing() {
         if (topButtonEl && document.body.contains(topButtonEl)) {
             return;
         }
 
-        // 找一个已经存在的顶栏按钮，拿它的父容器
+        // 找现成的顶栏按钮，复用它的父容器
         const probe =
             document.querySelector('#extensions-settings-button') ||
             document.querySelector('#sys-settings-button') ||
@@ -784,7 +801,7 @@
             document.querySelector('.menu_button');
 
         if (!probe || !probe.parentNode) {
-            return; // 还没渲染好，继续等
+            return; // 还没渲染完，下一轮再试
         }
 
         const toolbar = probe.parentNode;
@@ -802,7 +819,7 @@
         topButtonEl.style.cursor = 'pointer';
         topButtonEl.style.userSelect = 'none';
 
-        // 🎓图标：我们保留彩色/高亮，方便你快速定位
+        // 用 🎓 图标，保持你喜欢的高亮、位置、辨识度
         topButtonEl.innerHTML = `
             <span style="
                 font-size:18px;
@@ -829,9 +846,9 @@
         if (uiReady) return;
         uiReady = true;
 
-        loadData(); // 确保EbbData存在
+        loadData(); // 确保EbbData准备好
 
-        // 轮询插入顶部按钮（避免ST顶栏还没画完）
+        // 轮询，等顶栏渲染出来再塞我们的🎓
         let tries = 0;
         const maxTries = 100;
         const intv = setInterval(() => {
