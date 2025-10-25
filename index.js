@@ -393,86 +393,54 @@ const defaultData = {
     // Day | Level_0_New(新词/答错) | Level_1 | Level_2 | Level_3 | Level_4 | Level_5
     // ======================================================
     function buildTabVocabularyHTML_AllDays() {
-        const vm = EbbData.Vocabulary_Mastery || {};
-        const dayKeys = Object.keys(vm)
-            .sort((a,b) => {
-                const na = parseInt(a.replace('Day_',''),10);
-                const nb = parseInt(b.replace('Day_',''),10);
-                return na-nb;
-            });
+    // 收集所有 Day_*（按编号排序）
+    const days = Object.keys(EbbData.Vocabulary_Mastery || {})
+        .map(k => parseInt(k.replace('Day_',''), 10))
+        .filter(n => !Number.isNaN(n))
+        .sort((a,b)=>a-b);
 
-        // 如果还没有一天，就至少保证今天存在
-        if (dayKeys.length === 0) {
-            const todayKey = ensureTodayBucket();
-            dayKeys.push(todayKey);
-        }
+    // 如果还没开始，也给出 Day_1 的空行
+    if (days.length === 0) days.push(EbbData.Study_Control?.Current_Day || 1);
 
-        // 生成行
-        const trs = dayKeys.map(dayKey => {
-            const dayNum = dayKey.replace('Day_','');
-            const bucket = vm[dayKey] || {};
+    let rows = '';
+    for (const d of days) {
+        const key = 'Day_' + d;
+        const b = EbbData.Vocabulary_Mastery[key] || {
+            Level_0_New:[], Level_1:[], Level_2:[], Level_3:[], Level_4:[], Level_5_Mastered_Today:[]
+        };
+        const fmt = arr => (arr && arr.length) ? arr.join(', ') : '…';
 
-            const L0 = (bucket.Level_0_New || []).join(', ') || '…';
-            const L1 = (bucket.Level_1 || []).join(', ') || '…';
-            const L2 = (bucket.Level_2 || []).join(', ') || '…';
-            const L3 = (bucket.Level_3 || []).join(', ') || '…';
-            const L4 = (bucket.Level_4 || []).join(', ') || '…';
-            const L5 = (bucket.Level_5_Mastered_Today || []).join(', ') || '…';
+        rows += `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">Day ${d}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_0_New)}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_1)}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_2)}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_3)}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_4)}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_5_Mastered_Today)}</td>
+        </tr>`;
+    }
 
-            return `
-                <tr>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;white-space:nowrap;vertical-align:top;">
-                        Day ${dayNum}
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
-                        ${L0}
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
-                        ${L1}
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
-                        ${L2}
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
-                        ${L3}
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
-                        ${L4}
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
-                        ${L5}
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        return `
-            <div style="font-size:13px;color:#ccc;line-height:1.4;margin-bottom:8px;">
-                （按天查看）每一列是不同掌握等级。<br/>
-                Level_0_New = 今天的新词/本轮答错词重新打回。
-            </div>
-
-            <div style="overflow-x:auto; border:1px solid rgba(255,255,255,0.15); border-radius:8px;">
-                <table style="border-collapse:collapse; font-size:13px; min-width:700px;">
-                    <thead>
-                        <tr style="background:rgba(255,255,255,0.08);color:#fff;">
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Day</th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">
-                                Level_0_New<br/><span style="font-weight:400;color:#bbb;">(新词/答错)</span>
-                            </th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_1</th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_2</th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_3</th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_4</th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_5</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${trs}
-                    </tbody>
-                </table>
-            </div>
-        `;
+    return `
+    <div style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(0,0,0,0.2);padding:8px 10px;">
+        <div style="max-height:240px;overflow:auto;-webkit-overflow-scrolling:touch;">
+            <table style="border-collapse:collapse;min-width:700px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;">
+                <thead style="background:rgba(255,255,255,0.07);">
+                    <tr>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Day</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_0_New（新词/答错）</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_1</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_2</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_3</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_4</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_5</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    </div>`;
     }
 
     // ======================================================
@@ -483,43 +451,33 @@ const defaultData = {
     // row: List1 | create, desire, help, ... (所有Day1掌握的单词)
     // ======================================================
     function buildTabWordListsHTML() {
-        const lists = EbbData.Word_Lists || {};
-        const keys = Object.keys(lists);
+    const lists = EbbData.Word_Lists || {};
+    const names = Object.keys(lists); // 原样顺序；你也可以按 List1…List10 排序
 
-        const trs = (keys.length === 0)
-            ? `<tr><td colspan="2" style="padding:8px;color:#999;text-align:center;">暂无 List（还没有毕业词）</td></tr>`
-            : keys.map(listName => {
-                const arr = lists[listName] || [];
-                const wordsStr = arr.length ? arr.join(', ') : '…';
-                return `
+    let rows = '';
+    for (const name of names) {
+        const words = lists[name] || [];
+        rows += `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
+            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${name}</td>
+            <td style="padding:6px 10px;color:#fff;font-size:14px;">${words.length ? words.join(', ') : '…'}</td>
+        </tr>`;
+    }
+
+    return `
+    <div style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(0,0,0,0.2);padding:8px 10px;">
+        <div style="max-height:240px;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+            <table style="border-collapse:collapse;min-width:420px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;">
+                <thead style="background:rgba(255,255,255,0.07);">
                     <tr>
-                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;white-space:nowrap;vertical-align:top;">
-                            ${listName}
-                        </td>
-                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;word-break:break-word;min-width:200px;">
-                            ${wordsStr}
-                        </td>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">ListName</th>
+                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Words</th>
                     </tr>
-                `;
-            }).join('');
-
-        return `
-            <div style="font-size:13px;color:#ccc;line-height:1.4;margin-bottom:8px;">
-                每天结束后，“已彻底掌握的词”会打包成一个 ListN。
-            </div>
-
-            <div style="overflow-x:auto; border:1px solid rgba(255,255,255,0.15); border-radius:8px;">
-                <table style="border-collapse:collapse; font-size:13px; min-width:400px;">
-                    <thead>
-                        <tr style="background:rgba(255,255,255,0.08);color:#fff;">
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">ListName</th>
-                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Words</th>
-                        </tr>
-                    </thead>
-                    <tbody>${trs}</tbody>
-                </table>
-            </div>
-        `;
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    </div>`;
     }
 
     // ======================================================
@@ -532,7 +490,7 @@ const defaultData = {
     // 找出所有天里 Review 数组的最大长度 = maxReviewLen
     // 然后生成 Review1..ReviewN 列头
     // ======================================================
-function buildTabScheduleHTML() {
+    function buildTabScheduleHTML() {
     // 确保有最新数据
     const sched = EbbData.Ebbinghaus_Schedule || {};
 
@@ -660,7 +618,7 @@ function buildTabScheduleHTML() {
 
         </div>
     `;
-}
+    }
 
     // ======================================================
     // 分页4：学习控制 (Study_Control + 轮次按钮)
