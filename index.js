@@ -1,15 +1,23 @@
 // ======================================================
 //  Ebbinghaus Trainer - 词汇记忆四表系统
-//  版本: 0.2.0
+//  版本: 0.3.0
 //  作者: Dauvier & ChatGPT
 //  作用:
-//   1. 在顶部栏放⼀个学位帽按钮
+//   1. 在顶部栏放一个学位帽按钮
 //   2. 点击弹出“学习仪表盘”面板
 //   3. 管理四张核心表并持久化到 localStorage
 //      - Vocabulary_Mastery
 //      - Word_Lists
 //      - Ebbinghaus_Schedule
 //      - Study_Control
+//   4. 暴露一组API给“教官角色卡 / 你的QR快捷回复”调用
+//      - addNewWordsToToday([...])
+//      - promoteWord(word)
+//      - resetWordToLevel0(word)
+//      - punishWordFromList(word)   (= downgradeWordToToday)
+//      - finalizeTodayAndAdvance()
+//      - getWordsForTodayLevels()
+//      - getWordsFromList(listName)
 // ======================================================
 
 (function () {
@@ -34,7 +42,7 @@
             // "List1": ["wordA","wordB",...]
         },
         Ebbinghaus_Schedule: {
-            // 你可以之后用自己的艾宾浩斯计划表完全覆盖这里
+            // 你之后可以用自己的艾宾浩斯计划表来完全覆盖
             "1": { NewList: "List1", Review: [] },
             "2": { NewList: "List2", Review: ["List1"] },
             "3": { NewList: "List3", Review: ["List1","List2"] },
@@ -50,7 +58,7 @@
     let EbbData = null;
 
     // ------------------------------------------
-    // 工具：深拷贝（某些旧浏览器可能没有 structuredClone）
+    // 工具：深拷贝（兼容旧浏览器/旧WebView）
     // ------------------------------------------
     function deepClone(obj) {
         if (window.structuredClone) return window.structuredClone(obj);
@@ -110,7 +118,7 @@
 
     // ------------------------------------------
     // 操作函数 1: 往今天的 Level_0_New 里塞一批新词
-    // 你之后可以在快捷回复里让AI调用这一步逻辑（或半自动）
+    // 用于“开始学习”阶段，把你这批新词导入今天
     // ------------------------------------------
     function addNewWordsToToday(wordListArray) {
         const dayKey = ensureTodayBucket();
@@ -127,12 +135,14 @@
     }
 
     // ------------------------------------------
-    // 操作函数 2: 降级一个词
-    // 规则：
-    //   - 从今天这天的所有等级中删掉该词
-    //   - 再把它重新丢回 Level_0_New
-    //   - 同时把它从 Word_Lists 里移除（它就不再是毕业词）
-    // 这个对应“复习阶段答错 -> 严重警报 -> 降级处理”
+    // 操作函数 2: 复习错词的"严重警报"处理
+    // 逻辑：
+    //   - 从今天所有等级中删掉它
+    //   - 把它丢回今天的 Level_0_New
+    //   - 从所有 Word_Lists (毕业清单) 里把它踢掉
+    //
+    // 这个动作发生在"艾宾浩斯复习阶段"里，
+    // 也就是你在复习旧List的时候答错了。
     // ------------------------------------------
     function downgradeWordToToday(word) {
         const dayKey = ensureTodayBucket();
@@ -142,7 +152,7 @@
             "Level_0_New","Level_1","Level_2","Level_3","Level_4","Level_5_Mastered_Today"
         ];
 
-        // 先把它从所有level里面踢掉
+        // 1) 从今天所有level清理这个词
         for (const lv of levels) {
             const idx = bucket[lv].indexOf(word);
             if (idx !== -1) {
@@ -150,12 +160,12 @@
             }
         }
 
-        // 放回 Level_0_New
+        // 2) 丢回 Level_0_New
         if (!bucket.Level_0_New.includes(word)) {
             bucket.Level_0_New.push(word);
         }
 
-        // 再把它从所有毕业 List 里移除
+        // 3) 从毕业List里移除
         for (const listName of Object.keys(EbbData.Word_Lists)) {
             const arr = EbbData.Word_Lists[listName];
             const idx2 = arr.indexOf(word);
@@ -168,11 +178,134 @@
     }
 
     // ------------------------------------------
-    // 操作函数 3: 结束今天 / 打包毕业词 / 推进天数
-    // 对应“结束今天”阶段
-    //   1) 把今天 Level_5_Mastered_Today 打成 List{Today}
+    // 🔼 操作函数 3: promoteWord(word)
+    //
+    // 日常学习阶段，“我回答对了”：
+    //   - 让这个词在今天的等级往右升一级
+    //     Level_0_New -> Level_1 -> Level_2 -> Level_3 -> Level_4 -> Level_5_Mastered_Today
+    //
+    // 细节：
+    //   1. 找出它当前在哪个level（如果完全没出现过，当成 Level_0_New 起点）
+    //   2. 从旧level删掉它
+    //   3. 放进下一个level（最多到 Level_5_Mastered_Today）
+    // ------------------------------------------
+    function promoteWord(word) {
+        const dayKey = ensureTodayBucket();
+        const bucket = EbbData.Vocabulary_Mastery[dayKey];
+
+        const order = [
+            "Level_0_New",
+            "Level_1",
+            "Level_2",
+            "Level_3",
+            "Level_4",
+            "Level_5_Mastered_Today",
+        ];
+
+        // 先确认它是否在任意 level；如果不在就从Level_0_New起步
+        let currentIdx = -1;
+        for (let i = 0; i < order.length; i++) {
+            const lvName = order[i];
+            const arr = bucket[lvName];
+            const pos = arr.indexOf(word);
+            if (pos !== -1) {
+                currentIdx = i;
+                // 从当前级别移除
+                arr.splice(pos, 1);
+                break;
+            }
+        }
+        if (currentIdx === -1) {
+            // 这个词还没出现过，视为刚加入L0
+            currentIdx = 0;
+        }
+
+        // 下一个级别
+        let nextIdx = currentIdx + 1;
+        if (nextIdx >= order.length) {
+            nextIdx = order.length - 1; // 不会超过最后一级
+        }
+
+        const targetLevel = order[nextIdx];
+        if (!bucket[targetLevel].includes(word)) {
+            bucket[targetLevel].push(word);
+        }
+
+        saveData();
+    }
+
+    // ------------------------------------------
+    // 🔁 操作函数 4: resetWordToLevel0(word)
+    //
+    // 日常学习阶段，“我回答错了”：
+    //   - 不管它现在在L1~L5哪一级，统统踢掉
+    //   - 丢回今天的 Level_0_New 重新记
+    //
+    // 注意：这个和 downgradeWordToToday 的区别是：
+    //   resetWordToLevel0() 不会去管 Word_Lists，
+    //   因为日常学习时它还没正式毕业，不一定在任何 List 里。
+    // ------------------------------------------
+    function resetWordToLevel0(word) {
+        const dayKey = ensureTodayBucket();
+        const bucket = EbbData.Vocabulary_Mastery[dayKey];
+        const levels = [
+            "Level_0_New","Level_1","Level_2","Level_3","Level_4","Level_5_Mastered_Today"
+        ];
+
+        // 清理它当前所在的等级
+        for (const lv of levels) {
+            const idx = bucket[lv].indexOf(word);
+            if (idx !== -1) {
+                bucket[lv].splice(idx, 1);
+            }
+        }
+
+        // 打回 Level_0_New
+        if (!bucket.Level_0_New.includes(word)) {
+            bucket.Level_0_New.push(word);
+        }
+
+        saveData();
+    }
+
+    // ------------------------------------------
+    // 📚 操作函数 5: getWordsForTodayLevels()
+    //
+    // 目的：给“教官角色”读取今天所有等级里的词，好出题。
+    // 返回结构是今天的 { Level_0_New: [...], Level_1: [...], ... }
+    // 用 deepClone 防止外面直接改原数组。
+    // ------------------------------------------
+    function getWordsForTodayLevels() {
+        const dayKey = ensureTodayBucket();
+        const bucket = EbbData.Vocabulary_Mastery[dayKey];
+        return deepClone(bucket);
+    }
+
+    // ------------------------------------------
+    // 📦 操作函数 6: getWordsFromList(listName)
+    //
+    // 目的：在“艾宾浩斯复习”阶段，教官需要拿到某个历史List的全部毕业词，
+    // 例如 getWordsFromList("List2") -> ["wordA","wordB",...]
+    // ------------------------------------------
+    function getWordsFromList(listName) {
+        const arr = EbbData.Word_Lists[listName];
+        if (!arr) return [];
+        return [...arr];
+    }
+
+    // ------------------------------------------
+    // 操作函数 7: 结束今天 / 打包毕业词 / 推进天数
+    //
+    // “结束今天”的流程：
+    //   1) 把今天 Level_5_Mastered_Today 打包成 List{Today}
     //   2) 清空 Level_5_Mastered_Today
     //   3) Current_Day +1
+    //
+    // 举例：
+    //   今天 Day=3，有 ["policy","merge"] 在 Level_5_Mastered_Today
+    //   -> 生成 Word_Lists["List3"] = ["policy","merge"]
+    //   -> 清空今天的 Level_5_Mastered_Today
+    //   -> Current_Day 变成 4
     // ------------------------------------------
     function finalizeTodayAndAdvance() {
         const todayNum = EbbData.Study_Control.Current_Day;
@@ -203,7 +336,7 @@
         const dayKey = ensureTodayBucket();
         const bucket = EbbData.Vocabulary_Mastery[dayKey];
 
-        // 从计划表里拿今天的安排（NewList + 要复习的旧List）
+        // 从计划表拿今天安排
         const sched = EbbData.Ebbinghaus_Schedule[String(todayNum)] || {
             NewList: "(未定义)",
             Review: []
@@ -227,17 +360,57 @@
     }
 
     // ------------------------------------------
-    // 把API挂到全局，方便调试/以后扩展
-    // 你可以在浏览器控制台输入 EbbinghausDataAPI 来看
+    // 把API挂到全局，方便教官/快捷回复调用
+    //
+    // 之后你可以在角色卡提示里写：
+    //
+    // - 新词入库：
+    //   EbbinghausDataAPI.addNewWordsToToday(["apple","banana"])
+    //
+    // - 我答对了：
+    //   EbbinghausDataAPI.promoteWord("apple")
+    //
+    // - 我在学习阶段答错了：
+    //   EbbinghausDataAPI.resetWordToLevel0("apple")
+    //
+    // - 我在复习旧List时答错了：
+    //   EbbinghausDataAPI.punishWordFromList("apple")
+    //
+    // - 今天结束了：
+    //   EbbinghausDataAPI.finalizeTodayAndAdvance()
+    //
+    // - 教官出题用本日词表：
+    //   EbbinghausDataAPI.getWordsForTodayLevels()
+    //
+    // - 教官复习某个List：
+    //   EbbinghausDataAPI.getWordsFromList("List2")
     // ------------------------------------------
+    const punishWordFromList = downgradeWordToToday;
+
     window.EbbinghausDataAPI = {
+        // 数据存取
         loadData,
         saveData,
+
+        // 学习阶段
         addNewWordsToToday,
-        downgradeWordToToday,
+        promoteWord,
+        resetWordToLevel0,
+
+        // 复习阶段（艾宾浩斯）
+        downgradeWordToToday, // 原函数名
+        punishWordFromList,   // 别名，给角色卡用更直观的名字
+        getWordsFromList,
+        getWordsForTodayLevels,
+
+        // 日结
         finalizeTodayAndAdvance,
+
+        // 信息读取
         getTodaySnapshot,
         ensureTodayBucket,
+
+        // 原始数据镜像（只读用）
         get data() {
             return EbbData;
         },
@@ -266,7 +439,6 @@
             ? snap.schedule.Review.join(', ')
             : '（无）';
 
-        // 这是卡片内部结构
         return `
             <div style="
                 display:flex;
@@ -361,7 +533,7 @@
                 <div style="color:#ccc;margin-bottom:8px;">
                     2. 复习：教官根据 “今日复习安排” 里的 List 逐个抽查。<br/>
                     你答错的词 = 严重警报。教官必须调用
-                    <code style="color:#fff;">downgradeWordToToday(该词)</code>
+                    <code style="color:#fff;">punishWordFromList(该词)</code>
                     的效果：把这个词从毕业List里移除，并塞回今天的 Level_0_New 重新记。
                 </div>
 
@@ -457,29 +629,23 @@
     // 把顶部学位帽按钮插入到工具栏
     // 我们用轮询找“顶栏按钮容器”
     //
-    // 说明：
-    // SillyTavern 的顶部一排图标(设置齿轮、翻译、图像等)通常都在同一父容器里
-    // 我们做法：
-    //   1. 找到一个已存在的顶栏按钮(例如 #extensions-settings-button 或 .menu_button 里有齿轮)
-    //   2. 在同级插入我们的按钮
+    // 步骤：
+    //   1. 找任一已经存在的顶栏图标（sys-settings-button等）
+    //   2. 在同一父容器里 append 我们的按钮
     // ------------------------------------------
     function insertTopButtonIfMissing() {
         if (topButtonEl && document.body.contains(topButtonEl)) {
-            return; // 已经有并且还在DOM里
+            return; // 已经存在了
         }
 
-        // 猜测一个顶部icon的父容器：
-        // 尝试找任意一个常驻按钮，比如“扩展设置按钮”
-        // SillyTavern常见id: #extensions-settings-button, #sys-settings-button, etc.
-        // 我们尽量找一个存在的，然后用它的parentNode当容器。
         const probe =
             document.querySelector('#extensions-settings-button') ||
             document.querySelector('#sys-settings-button') ||
             document.querySelector('.extensions-settings-button') ||
-            document.querySelector('.menu_button'); // 兜底：拿到任一按钮
+            document.querySelector('.menu_button'); // 兜底
 
         if (!probe || !probe.parentNode) {
-            return; // 还没加载出来
+            return; // 还没渲染到顶部栏
         }
 
         const toolbar = probe.parentNode;
@@ -487,8 +653,6 @@
         // 创建我们的按钮
         topButtonEl = document.createElement('div');
         topButtonEl.id = 'ebb_toolbar_btn';
-        // SillyTavern 的顶栏图标一般是类似 class="menu_button" 或 "menu_button btn_small"
-        // 这里我们用最接近原生的 class，样式再轻微内联一下
         topButtonEl.className = 'menu_button';
         topButtonEl.style.display = 'flex';
         topButtonEl.style.alignItems = 'center';
@@ -500,7 +664,7 @@
         topButtonEl.style.cursor = 'pointer';
         topButtonEl.style.userSelect = 'none';
 
-        // 用学位帽emoji作为图标（在你的主题里它会被染色成和别的图标一样的浅色）
+        // 学位帽emoji作为图标
         topButtonEl.innerHTML = `
             <span style="
                 font-size:18px;
@@ -516,16 +680,15 @@
             toggleOverlay();
         }, true);
 
-        // 插进工具栏末尾（或你想插的任意位置：before/after等）
         toolbar.appendChild(topButtonEl);
 
         console.log(`[${EXT_NAME}] Topbar study button inserted.`);
     }
 
     // ------------------------------------------
-    // 启动流程：
+    // 初始化：
     // 1. 载入本地数据
-    // 2. 轮询等待SillyTavern顶部UI出现，再插入按钮
+    // 2. 轮询UI，插入顶部按钮
     // ------------------------------------------
     function init() {
         if (uiReady) return;
@@ -533,7 +696,7 @@
 
         loadData(); // 确保 EbbData 初始化
 
-        // 轮询插入顶部按钮（避免ST还没渲染出来）
+        // 轮询等待顶部栏生成
         let tries = 0;
         const maxTries = 100;
         const intv = setInterval(() => {
@@ -560,3 +723,4 @@
     }
 
 })();
+```0
