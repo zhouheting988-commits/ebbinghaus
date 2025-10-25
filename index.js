@@ -35,86 +35,29 @@
     const EXT_NAME = 'EbbinghausTrainer';
     const STORAGE_KEY = 'EbbinghausTrainerData_v2';
 
-// ------------------------------------------
-// 数据区：默认存档骨架（已按你的计划表更新）
-// ------------------------------------------
-const defaultData = {
-    Vocabulary_Mastery: {
-        // 运行时会自动生成：
-        // "Day_1": {
-        //     Level_0_New: [],
-        //     Level_1: [],
-        //     Level_2: [],
-        //     Level_3: [],
-        //     Level_4: [],
-        //     Level_5_Mastered_Today: [],
-        // }
-    },
+    // -----------------------------
+    // 默认数据骨架
+    // -----------------------------
+    const defaultData = {
+        Vocabulary_Mastery: {
+            // "Day_1": { Level_0_New:[], Level_1:[], ..., Level_5_Mastered_Today:[] }
+        },
+        Word_Lists: {
+            // "List1": ["create","desire","help", ...]
+        },
+        Ebbinghaus_Schedule: {
+            "1": { NewList: "List1", Review: [] },
+            "2": { NewList: "List2", Review: ["List1"] },
+            "3": { NewList: "List3", Review: ["List1","List2"] },
+            "4": { NewList: "List4", Review: ["List2","List3"] },
+            "5": { NewList: "List5", Review: ["List1","List3","List4"] },
+        },
+        Study_Control: {
+            Current_Day: 1,
+            Current_Round: 1, // 1=单词, 2=短语, 3=句子
+        },
+    };
 
-    // 每天结束后打包出来的毕业清单
-    // 比如 Day 1 结束后把完全掌握的词放进 List1
-    Word_Lists: {
-        // "List1": ["wordA","wordB",...]
-    },
-
-    // === 这是你那张“艾宾浩斯遗忘曲线复习计划表” ===
-    // Round 1（第一轮=单词阶段）专用的日程。
-    //
-    // 解释：
-    // "1":  { NewList: "List1",  Review: [] }
-    // 代表：
-    //   Day 1 这天要新背的词包是 List1
-    //   复习旧词列表为空
-    //
-    // "6":  { NewList: "List6",  Review: ["List2","List4","List5"] }
-    // 代表：
-    //   Day 6 新背 List6
-    //   同时复习 List2 / List4 / List5
-    //
-    Ebbinghaus_Schedule: {
-        "1":  { NewList: "List1",  Review: [] },
-        "2":  { NewList: "List2",  Review: ["List1"] },
-        "3":  { NewList: "List3",  Review: ["List1", "List2"] },
-        "4":  { NewList: "List4",  Review: ["List2", "List3"] },
-        "5":  { NewList: "List5",  Review: ["List1", "List3", "List4"] },
-        "6":  { NewList: "List6",  Review: ["List2", "List4", "List5"] },
-        "7":  { NewList: "List7",  Review: ["List3", "List5", "List6"] },
-        "8":  { NewList: "List8",  Review: ["List1", "List4", "List6", "List7"] },
-        "9":  { NewList: "List9",  Review: ["List2", "List5", "List7", "List8"] },
-        "10": { NewList: "List10", Review: ["List3", "List6", "List8", "List9"] },
-
-        // 从 Day11 往后，你的表进入“回收阶段”
-        // 不再新增 List11、List12…，而是开始把旧List再次拉出来复查
-        "11": { NewList: "List4",  Review: ["List7", "List9", "List10"] },
-        "12": { NewList: "List5",  Review: ["List8", "List10"] },
-        "13": { NewList: "List6",  Review: ["List9"] },
-        "14": { NewList: "List7",  Review: ["List10"] },
-        "15": { NewList: "List8",  Review: [] },
-        "16": { NewList: "List1",  Review: ["List9"] },
-        "17": { NewList: "List2",  Review: ["List10"] },
-        "18": { NewList: "List3",  Review: [] },
-        "19": { NewList: "List4",  Review: [] },
-        "20": { NewList: "List5",  Review: [] },
-        "21": { NewList: "List6",  Review: [] },
-        "22": { NewList: "List7",  Review: [] },
-        "23": { NewList: "List8",  Review: [] },
-        "24": { NewList: "List9",  Review: [] },
-        "25": { NewList: "List10", Review: [] },
-    },
-
-    // 学习控制信息（保持不动）
-    //
-    // Current_Day: 现在是第几天（不是现实日历，是训练进度）
-    // Current_Round: 当前是第几轮
-    //   1 = 单词轮 (Round 1: 纯单词)
-    //   2 = 短语轮 (Round 2: 短语搭配)
-    //   3 = 句子轮 (Round 3: 整句+知识点)
-    //
-    Study_Control: {
-        Current_Day: 1,
-        Current_Round: 1,   // 保持轮次系统不变，UI第4页会读这个
-    },
-};
     let EbbData = null;
 
     // ------------------------------------------
@@ -393,54 +336,86 @@ const defaultData = {
     // Day | Level_0_New(新词/答错) | Level_1 | Level_2 | Level_3 | Level_4 | Level_5
     // ======================================================
     function buildTabVocabularyHTML_AllDays() {
-    // 收集所有 Day_*（按编号排序）
-    const days = Object.keys(EbbData.Vocabulary_Mastery || {})
-        .map(k => parseInt(k.replace('Day_',''), 10))
-        .filter(n => !Number.isNaN(n))
-        .sort((a,b)=>a-b);
+        const vm = EbbData.Vocabulary_Mastery || {};
+        const dayKeys = Object.keys(vm)
+            .sort((a,b) => {
+                const na = parseInt(a.replace('Day_',''),10);
+                const nb = parseInt(b.replace('Day_',''),10);
+                return na-nb;
+            });
 
-    // 如果还没开始，也给出 Day_1 的空行
-    if (days.length === 0) days.push(EbbData.Study_Control?.Current_Day || 1);
+        // 如果还没有一天，就至少保证今天存在
+        if (dayKeys.length === 0) {
+            const todayKey = ensureTodayBucket();
+            dayKeys.push(todayKey);
+        }
 
-    let rows = '';
-    for (const d of days) {
-        const key = 'Day_' + d;
-        const b = EbbData.Vocabulary_Mastery[key] || {
-            Level_0_New:[], Level_1:[], Level_2:[], Level_3:[], Level_4:[], Level_5_Mastered_Today:[]
-        };
-        const fmt = arr => (arr && arr.length) ? arr.join(', ') : '…';
+        // 生成行
+        const trs = dayKeys.map(dayKey => {
+            const dayNum = dayKey.replace('Day_','');
+            const bucket = vm[dayKey] || {};
 
-        rows += `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">Day ${d}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_0_New)}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_1)}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_2)}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_3)}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_4)}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${fmt(b.Level_5_Mastered_Today)}</td>
-        </tr>`;
-    }
+            const L0 = (bucket.Level_0_New || []).join(', ') || '…';
+            const L1 = (bucket.Level_1 || []).join(', ') || '…';
+            const L2 = (bucket.Level_2 || []).join(', ') || '…';
+            const L3 = (bucket.Level_3 || []).join(', ') || '…';
+            const L4 = (bucket.Level_4 || []).join(', ') || '…';
+            const L5 = (bucket.Level_5_Mastered_Today || []).join(', ') || '…';
 
-    return `
-    <div style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(0,0,0,0.2);padding:8px 10px;">
-        <div style="max-height:240px;overflow:auto;-webkit-overflow-scrolling:touch;">
-            <table style="border-collapse:collapse;min-width:700px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;">
-                <thead style="background:rgba(255,255,255,0.07);">
-                    <tr>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">Day</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_0_New（新词/答错）</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_1</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_2</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_3</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_4</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Level_5</th>
-                    </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
-        </div>
-    </div>`;
+            return `
+                <tr>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;white-space:nowrap;vertical-align:top;">
+                        Day ${dayNum}
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
+                        ${L0}
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
+                        ${L1}
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
+                        ${L2}
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
+                        ${L3}
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
+                        ${L4}
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;min-width:120px;word-break:break-word;">
+                        ${L5}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div style="font-size:13px;color:#ccc;line-height:1.4;margin-bottom:8px;">
+                （按天查看）每一列是不同掌握等级。<br/>
+                Level_0_New = 今天的新词/本轮答错词重新打回。
+            </div>
+
+            <div style="overflow-x:auto; border:1px solid rgba(255,255,255,0.15); border-radius:8px;">
+                <table style="border-collapse:collapse; font-size:13px; min-width:700px;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.08);color:#fff;">
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Day</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">
+                                Level_0_New<br/><span style="font-weight:400;color:#bbb;">(新词/答错)</span>
+                            </th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_1</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_2</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_3</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_4</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Level_5</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trs}
+                    </tbody>
+                </table>
+            </div>
+        `;
     }
 
     // ======================================================
@@ -451,33 +426,43 @@ const defaultData = {
     // row: List1 | create, desire, help, ... (所有Day1掌握的单词)
     // ======================================================
     function buildTabWordListsHTML() {
-    const lists = EbbData.Word_Lists || {};
-    const names = Object.keys(lists); // 原样顺序；你也可以按 List1…List10 排序
+        const lists = EbbData.Word_Lists || {};
+        const keys = Object.keys(lists);
 
-    let rows = '';
-    for (const name of names) {
-        const words = lists[name] || [];
-        rows += `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
-            <td style="padding:6px 10px;color:#fff;font-size:14px;white-space:nowrap;">${name}</td>
-            <td style="padding:6px 10px;color:#fff;font-size:14px;">${words.length ? words.join(', ') : '…'}</td>
-        </tr>`;
-    }
-
-    return `
-    <div style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(0,0,0,0.2);padding:8px 10px;">
-        <div style="max-height:240px;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-            <table style="border-collapse:collapse;min-width:420px;background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;">
-                <thead style="background:rgba(255,255,255,0.07);">
+        const trs = (keys.length === 0)
+            ? `<tr><td colspan="2" style="padding:8px;color:#999;text-align:center;">暂无 List（还没有毕业词）</td></tr>`
+            : keys.map(listName => {
+                const arr = lists[listName] || [];
+                const wordsStr = arr.length ? arr.join(', ') : '…';
+                return `
                     <tr>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;white-space:nowrap;">ListName</th>
-                        <th style="text-align:left;padding:6px 10px;color:#fff;font-size:13px;font-weight:bold;">Words</th>
+                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;white-space:nowrap;vertical-align:top;">
+                            ${listName}
+                        </td>
+                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;word-break:break-word;min-width:200px;">
+                            ${wordsStr}
+                        </td>
                     </tr>
-                </thead>
-                <tbody>${rows}</tbody>
-            </table>
-        </div>
-    </div>`;
+                `;
+            }).join('');
+
+        return `
+            <div style="font-size:13px;color:#ccc;line-height:1.4;margin-bottom:8px;">
+                每天结束后，“已彻底掌握的词”会打包成一个 ListN。
+            </div>
+
+            <div style="overflow-x:auto; border:1px solid rgba(255,255,255,0.15); border-radius:8px;">
+                <table style="border-collapse:collapse; font-size:13px; min-width:400px;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.08);color:#fff;">
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">ListName</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Words</th>
+                        </tr>
+                    </thead>
+                    <tbody>${trs}</tbody>
+                </table>
+            </div>
+        `;
     }
 
     // ======================================================
@@ -490,86 +475,81 @@ const defaultData = {
     // 找出所有天里 Review 数组的最大长度 = maxReviewLen
     // 然后生成 Review1..ReviewN 列头
     // ======================================================
-    // ------------------------------------------
-// 数据区：默认存档骨架（已按你的计划表更新）
-// ------------------------------------------
-const defaultData = {
-    Vocabulary_Mastery: {
-        // 运行时会自动生成：
-        // "Day_1": {
-        //     Level_0_New: [],
-        //     Level_1: [],
-        //     Level_2: [],
-        //     Level_3: [],
-        //     Level_4: [],
-        //     Level_5_Mastered_Today: [],
-        // }
-    },
+    function buildTabScheduleHTML() {
+        const sched = EbbData.Ebbinghaus_Schedule || {};
+        const days = Object.keys(sched)
+            .sort((a,b)=>Number(a)-Number(b));
 
-    // 每天结束后打包出来的毕业清单
-    // 比如 Day 1 结束后把完全掌握的词放进 List1
-    Word_Lists: {
-        // "List1": ["wordA","wordB",...]
-    },
+        // 找出最大复习列数
+        let maxReviewLen = 0;
+        for (const d of days) {
+            const revArr = Array.isArray(sched[d].Review) ? sched[d].Review : [];
+            if (revArr.length > maxReviewLen) {
+                maxReviewLen = revArr.length;
+            }
+        }
 
-    // === 这是你那张“艾宾浩斯遗忘曲线复习计划表” ===
-    // Round 1（第一轮=单词阶段）专用的日程。
-    //
-    // 解释：
-    // "1":  { NewList: "List1",  Review: [] }
-    // 代表：
-    //   Day 1 这天要新背的词包是 List1
-    //   复习旧词列表为空
-    //
-    // "6":  { NewList: "List6",  Review: ["List2","List4","List5"] }
-    // 代表：
-    //   Day 6 新背 List6
-    //   同时复习 List2 / List4 / List5
-    //
-    Ebbinghaus_Schedule: {
-        "1":  { NewList: "List1",  Review: [] },
-        "2":  { NewList: "List2",  Review: ["List1"] },
-        "3":  { NewList: "List3",  Review: ["List1", "List2"] },
-        "4":  { NewList: "List4",  Review: ["List2", "List3"] },
-        "5":  { NewList: "List5",  Review: ["List1", "List3", "List4"] },
-        "6":  { NewList: "List6",  Review: ["List2", "List4", "List5"] },
-        "7":  { NewList: "List7",  Review: ["List3", "List5", "List6"] },
-        "8":  { NewList: "List8",  Review: ["List1", "List4", "List6", "List7"] },
-        "9":  { NewList: "List9",  Review: ["List2", "List5", "List7", "List8"] },
-        "10": { NewList: "List10", Review: ["List3", "List6", "List8", "List9"] },
+        // 生成表头里的 Review 列
+        const reviewHeadHTML = [];
+        for (let i=0; i<maxReviewLen; i++) {
+            reviewHeadHTML.push(`
+                <th style="text-align:left;padding:6px 8px;white-space:nowrap;">
+                    Review${i+1}
+                </th>
+            `);
+        }
 
-        // 从 Day11 往后，你的表进入“回收阶段”
-        // 不再新增 List11、List12…，而是开始把旧List再次拉出来复查
-        "11": { NewList: "List4",  Review: ["List7", "List9", "List10"] },
-        "12": { NewList: "List5",  Review: ["List8", "List10"] },
-        "13": { NewList: "List6",  Review: ["List9"] },
-        "14": { NewList: "List7",  Review: ["List10"] },
-        "15": { NewList: "List8",  Review: [] },
-        "16": { NewList: "List1",  Review: ["List9"] },
-        "17": { NewList: "List2",  Review: ["List10"] },
-        "18": { NewList: "List3",  Review: [] },
-        "19": { NewList: "List4",  Review: [] },
-        "20": { NewList: "List5",  Review: [] },
-        "21": { NewList: "List6",  Review: [] },
-        "22": { NewList: "List7",  Review: [] },
-        "23": { NewList: "List8",  Review: [] },
-        "24": { NewList: "List9",  Review: [] },
-        "25": { NewList: "List10", Review: [] },
-    },
+        // 生成每一行
+        const trs = (days.length === 0)
+            ? `<tr><td colspan="${2+maxReviewLen}" style="padding:8px;color:#999;text-align:center;">暂无复习计划</td></tr>`
+            : days.map(dayNum => {
+                const info = sched[dayNum];
+                const newList = info.NewList || '(未定义)';
+                const revArr = Array.isArray(info.Review) ? info.Review : [];
 
-    // 学习控制信息（保持不动）
-    //
-    // Current_Day: 现在是第几天（不是现实日历，是训练进度）
-    // Current_Round: 当前是第几轮
-    //   1 = 单词轮 (Round 1: 纯单词)
-    //   2 = 短语轮 (Round 2: 短语搭配)
-    //   3 = 句子轮 (Round 3: 整句+知识点)
-    //
-    Study_Control: {
-        Current_Day: 1,
-        Current_Round: 1,   // 保持轮次系统不变，UI第4页会读这个
-    },
-};
+                // 把每个Review填到列里
+                const reviewCols = [];
+                for (let i=0; i<maxReviewLen; i++) {
+                    const val = revArr[i] || '…';
+                    reviewCols.push(`
+                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;word-break:break-word;min-width:100px;">
+                            ${val}
+                        </td>
+                    `);
+                }
+
+                return `
+                    <tr>
+                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#fff;white-space:nowrap;vertical-align:top;">
+                            ${dayNum}
+                        </td>
+                        <td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ccc;vertical-align:top;word-break:break-word;min-width:100px;">
+                            ${newList}
+                        </td>
+                        ${reviewCols.join('')}
+                    </tr>
+                `;
+            }).join('');
+
+        return `
+            <div style="font-size:13px;color:#ccc;line-height:1.4;margin-bottom:8px;">
+                每天要学的新词(NewList)＋要复习的旧词组(Review列)。
+            </div>
+
+            <div style="overflow-x:auto; border:1px solid rgba(255,255,255,0.15); border-radius:8px;">
+                <table style="border-collapse:collapse; font-size:13px; min-width:${200 + maxReviewLen*110}px;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.08);color:#fff;">
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">Day</th>
+                            <th style="text-align:left;padding:6px 8px;white-space:nowrap;">NewList</th>
+                            ${reviewHeadHTML.join('')}
+                        </tr>
+                    </thead>
+                    <tbody>${trs}</tbody>
+                </table>
+            </div>
+        `;
+    }
 
     // ======================================================
     // 分页4：学习控制 (Study_Control + 轮次按钮)
@@ -813,163 +793,4 @@ const defaultData = {
             overlayEl.style.boxSizing = 'border-box';
 
             // 点击遮罩空白 -> 关闭
-            overlayEl.addEventListener('click', (ev) => {
-                if (ev.target === overlayEl) hideOverlay();
-            }, true);
-
-            overlayCardEl = document.createElement('div');
-            overlayCardEl.id = 'ebb_overlay_card';
-            overlayCardEl.style.background = 'rgba(20,20,20,0.95)';
-            overlayCardEl.style.borderRadius = '12px';
-            overlayCardEl.style.border = '1px solid rgba(255,255,255,0.2)';
-            overlayCardEl.style.color = '#fff';
-            overlayCardEl.style.width = '90%';
-            overlayCardEl.style.maxWidth = '500px';
-            overlayCardEl.style.maxHeight = '80vh';
-            overlayCardEl.style.overflowY = 'auto';
-            overlayCardEl.style.padding = '16px 16px 20px 16px';
-            overlayCardEl.style.boxShadow = '0 24px 60px rgba(0,0,0,0.8)';
-            overlayCardEl.style.fontFamily = '"Inter","PingFang SC","Microsoft YaHei",sans-serif';
-
-            overlayEl.appendChild(overlayCardEl);
-            document.body.appendChild(overlayEl);
-        }
-
-        overlayCardEl.innerHTML = buildOverlayOuterHTML();
-        bindOverlayInnerEvents();
-        overlayEl.style.display = 'flex';
-    }
-
-    function hideOverlay() {
-        if (overlayEl) {
-            overlayEl.style.display = 'none';
-        }
-    }
-
-    function toggleOverlay() {
-        if (!overlayEl || overlayEl.style.display === 'none') {
-            showOverlay();
-        } else {
-            hideOverlay();
-        }
-    }
-
-    function bindOverlayInnerEvents() {
-        if (!overlayCardEl) return;
-
-        // 关闭按钮
-        const closeBtn = overlayCardEl.querySelector('#ebb_close_btn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', (ev) => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                hideOverlay();
-            }, true);
-        }
-
-        // Tab切换按钮
-        overlayCardEl.querySelectorAll('.ebb_tab_btn').forEach(btn => {
-            btn.addEventListener('click', (ev) => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                const idx = parseInt(btn.getAttribute('data-tab-index'), 10);
-                activeTabIndex = idx;
-                overlayCardEl.innerHTML = buildOverlayOuterHTML();
-                bindOverlayInnerEvents();
-            }, true);
-        });
-
-        // 轮次按钮（仅在第4页）
-        overlayCardEl.querySelectorAll('.ebb_round_btn').forEach(btn => {
-            btn.addEventListener('click', (ev) => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                const act = btn.getAttribute('data-round-action');
-                if (act === 'next') {
-                    nextRound();
-                } else if (act === 'set1') {
-                    setRound(1);
-                } else if (act === 'set2') {
-                    setRound(2);
-                } else if (act === 'set3') {
-                    setRound(3);
-                }
-                // 重新渲染当前tab
-                overlayCardEl.innerHTML = buildOverlayOuterHTML();
-                bindOverlayInnerEvents();
-            }, true);
-        });
-    }
-
-    // ======================================================
-    // 顶栏学士帽按钮 注入
-    // ======================================================
-    function insertTopButtonIfMissing() {
-        if (topButtonEl && document.body.contains(topButtonEl)) return;
-
-        const probe =
-            document.querySelector('#extensions-settings-button') ||
-            document.querySelector('#sys-settings-button') ||
-            document.querySelector('.extensions-settings-button') ||
-            document.querySelector('.menu_button');
-
-        if (!probe || !probe.parentNode) return;
-        const toolbar = probe.parentNode;
-
-        topButtonEl = document.createElement('div');
-        topButtonEl.id = 'ebb_toolbar_btn';
-        topButtonEl.className = 'menu_button';
-        topButtonEl.style.display = 'flex';
-        topButtonEl.style.alignItems = 'center';
-        topButtonEl.style.justifyContent = 'center';
-        topButtonEl.style.minWidth = '32px';
-        topButtonEl.style.minHeight = '32px';
-        topButtonEl.style.padding = '6px';
-        topButtonEl.style.borderRadius = '6px';
-        topButtonEl.style.cursor = 'pointer';
-        topButtonEl.style.userSelect = 'none';
-
-        // 保留 🎓 外观，和你喜欢的那个小帽子位置一致
-        topButtonEl.innerHTML = `
-            <span style="font-size:18px;line-height:18px;filter:brightness(1.2);">🎓</span>
-        `;
-
-        topButtonEl.addEventListener('click', (ev) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            toggleOverlay();
-        }, true);
-
-        toolbar.appendChild(topButtonEl);
-        console.log(`[${EXT_NAME}] Topbar study button inserted.`);
-    }
-
-    // ======================================================
-    // 启动
-    // ======================================================
-    function init() {
-        if (uiReady) return;
-        uiReady = true;
-        loadData();
-
-        let tries = 0;
-        const maxTries = 100;
-        const intv = setInterval(() => {
-            tries++;
-            insertTopButtonIfMissing();
-            if (topButtonEl) {
-                clearInterval(intv);
-                console.log(`[${EXT_NAME}] UI injection complete.`);
-            } else if (tries >= maxTries) {
-                clearInterval(intv);
-                console.warn(`[${EXT_NAME}] Failed to locate toolbar for top button.`);
-            }
-        }, 200);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init, { once: true });
-    } else {
-        init();
-    }
-})();
+           
