@@ -1,6 +1,5 @@
-// Ebbinghaus Trainer · native-styled toolbar icon (no floating button)
+// Ebbinghaus Trainer · toolbar icon (robust click binding)
 (function () {
-  // 可换的图标类：fa-book-open / fa-graduation-cap / fa-brain / fa-pen-nib / fa-book
   const ICON_CLASS = 'fa-graduation-cap';
 
   function openPanel() {
@@ -37,34 +36,41 @@
     }
   }
 
-  // —— 顶部“原生风格”图标按钮（使用 ST 的 .menu_button 样式） ——
+  // —— 顶部“原生风格”图标按钮 ——（加多重兜底绑定）
   function addNativeToolbarIcon() {
-    // 清理之前可能插入的临时按钮
-    const oldFallback = document.getElementById('eb-toolbar-icon');
-    if (oldFallback) oldFallback.remove();
-
     const anchor = document.getElementById('extensions-settings-button')
                || document.querySelector('#extensions-settings-button')
                || document.querySelector('.extensions-settings-button');
     if (!anchor || !anchor.parentElement) return;
-
     if (document.getElementById('eb-toolbar-native')) return;
 
     const btn = document.createElement('div');
     btn.id = 'eb-toolbar-native';
-    btn.className = 'menu_button';                // 关键：使用 ST 原生按钮样式
+    btn.className = 'menu_button';
     btn.title = '艾宾浩斯词汇导师';
-
-    // 使用 Font Awesome 图标，跟系统其它图标同风格
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '0');
+    btn.style.userSelect = 'none';
+    btn.style.pointerEvents = 'auto';
     btn.innerHTML = `<i class="fa-solid ${ICON_CLASS}"></i>`;
-    btn.addEventListener('click', openPanel);
 
-    // 插到设置图标旁边（你也可以 insertBefore 放到更靠前的位置）
+    // 直接绑定点击/触摸
+    const fire = (e) => { e.preventDefault(); e.stopPropagation(); openPanel(); };
+    btn.addEventListener('click', fire, true);
+    btn.addEventListener('touchend', fire, true);
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') fire(e); }, true);
+
     anchor.parentElement.insertBefore(btn, anchor.nextSibling);
-    console.log('[EbbinghausTrainer] native toolbar icon injected');
+
+    // 全局事件代理（兜底：即使外层有捕获，也能命中）
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#eb-toolbar-native')) { fire(e); }
+    }, true);
+
+    console.log('[EbbinghausTrainer] native toolbar icon injected & bound');
   }
 
-  // —— 本地斜杠命令（/记忆表 /eb /memory） ——
+  // —— /记忆表 /eb /memory ——（备用入口）
   function addLocalSlash() {
     const tryBind = () => {
       const input = document.getElementById('send_textarea') || document.querySelector('textarea');
@@ -84,23 +90,20 @@
           if (tryOpen()) { e.preventDefault(); e.stopPropagation(); }
         }
       }, true);
-
       if (sendBtn) sendBtn.addEventListener('click', () => { tryOpen(); }, true);
       return true;
     };
 
     let tries = 0;
-    const timer = setInterval(() => {
-      if (tryBind() || ++tries > 10) clearInterval(timer);
-    }, 500);
+    const t = setInterval(() => { if (tryBind() || ++tries > 10) clearInterval(t); }, 500);
   }
 
-  // —— 消息卡片上的“记忆表”按钮（保留一个备份入口） ——
+  // —— 消息卡片按钮（再备份一层）
   function addMessageButton() {
     document.addEventListener('click', (e) => {
       const el = e.target.closest('.eb-open-panel');
-      if (el) openPanel();
-    });
+      if (el) { e.preventDefault(); e.stopPropagation(); openPanel(); }
+    }, true);
 
     const inject = () => {
       document.querySelectorAll('.extraMesButtons').forEach(box => {
@@ -117,11 +120,10 @@
   }
 
   function init() {
-    // 不再注册任何浮动按钮，避免遮挡
-    addNativeToolbarIcon();   // 顶部原生风格图标
-    addLocalSlash();          // /记忆表 /eb /memory
-    addMessageButton();       // 消息卡片入口
-    console.log('[EbbinghausTrainer] entry (native toolbar icon) initialized');
+    addNativeToolbarIcon();
+    addLocalSlash();
+    addMessageButton();
+    console.log('[EbbinghausTrainer] entry initialized');
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') init();
